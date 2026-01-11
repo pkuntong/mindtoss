@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MindToss - Capture Your Thoughts Instantly</title>
+  <meta name="description" content="Never forget a thought again. MindToss lets you quickly capture ideas, voice memos, and photos - sending them straight to your inbox.">
+  <meta name="theme-color" content="#FF6B35">
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="MindToss - Capture Your Thoughts Instantly">
+  <meta property="og:description" content="Never forget a thought again. Capture ideas, voice memos, and photos instantly.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mindtoss.vercel.app">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #2D3436;
+      background: #FFFFFF;
+    }
+
+    /* Hero Section */
+    .hero {
+      background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
+      color: white;
+      padding: 60px 20px 80px;
+      text-align: center;
+    }
+
+    .hero-content {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .logo {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+
+    .hero p {
+      font-size: 20px;
+      opacity: 0.95;
+      margin-bottom: 30px;
+    }
+
+    .app-store-btn {
+      display: inline-block;
+      background: #000;
+      color: white;
+      padding: 14px 28px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      transition: transform 0.2s;
+    }
+
+    .app-store-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .app-store-btn svg {
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    /* Features Section */
+    .features {
+      padding: 80px 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .features h2 {
+      text-align: center;
+      font-size: 32px;
+      margin-bottom: 50px;
+      color: #2D3436;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+    }
+
+    .feature-card {
+      background: #F8F9FA;
+      border-radius: 20px;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .feature-icon {
+      width: 60px;
+      height: 60px;
+      background: #FF6B35;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .feature-icon svg {
+      width: 30px;
+      height: 30px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .feature-card h3 {
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: #2D3436;
+    }
+
+    .feature-card p {
+      color: #636E72;
+      font-size: 15px;
+    }
+
+    /* How It Works */
+    .how-it-works {
+      background: #2D3436;
+      color: white;
+      padding: 80px 20px;
+      text-align: center;
+    }
+
+    .how-it-works h2 {
+      font-size: 32px;
+      margin-bottom: 50px;
+    }
+
+    .steps {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .step {
+      flex: 1;
+      min-width: 200px;
+      max-width: 250px;
+    }
+
+    .step-number {
+      width: 50px;
+      height: 50px;
+      background: #FF6B35;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 800;
+      margin: 0 auto 15px;
+    }
+
+    .step h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+
+    .step p {
+      color: #B2BEC3;
+      font-size: 14px;
+    }
+
+    /* CTA Section */
+    .cta {
+      padding: 80px 20px;
+      text-align: center;
+      background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
+      color: white;
+    }
+
+    .cta h2 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    .cta p {
+      font-size: 18px;
+      opacity: 0.95;
+      margin-bottom: 30px;
+    }
+
+    .cta .app-store-btn {
+      background: white;
+      color: #FF6B35;
+    }
+
+    /* Footer */
+    footer {
+      background: #1A1A1A;
+      color: #B2BEC3;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .footer-links {
+      margin-bottom: 20px;
+    }
+
+    .footer-links a {
+      color: #B2BEC3;
+      text-decoration: none;
+      margin: 0 15px;
+      font-size: 14px;
+    }
+
+    .footer-links a:hover {
+      color: #FF6B35;
+    }
+
+    .copyright {
+      font-size: 13px;
+      color: #636E72;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 32px;
+      }
+      .hero p {
+        font-size: 17px;
+      }
+      .features h2, .how-it-works h2, .cta h2 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="logo">MindToss</div>
+      <h1>Never Forget a Thought Again</h1>
+      <p>Capture ideas, voice memos, and photos instantly. Send them straight to your inbox for processing later.</p>
+      <a href="#" class="app-store-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+        </svg>
+        Download on App Store
+      </a>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features">
+    <h2>Capture Thoughts Your Way</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <h3>Quick Notes</h3>
+        <p>Type your thoughts in seconds. No folders, no categories - just capture and send.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </div>
+        <h3>Voice Memos</h3>
+        <p>Record voice notes when typing isn't convenient. Perfect for ideas on the go.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <h3>Photo Capture</h3>
+        <p>Snap photos of whiteboards, documents, or anything visual you want to remember.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <h3>Direct to Inbox</h3>
+        <p>Everything goes straight to your email. Process later with GTD, Inbox Zero, or your own system.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </div>
+        <h3>Dark Mode</h3>
+        <p>Easy on the eyes during late-night brainstorming sessions.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h3>History</h3>
+        <p>Access your recent tosses anytime. Never lose track of what you've captured.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-it-works">
+    <h2>How It Works</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Open & Capture</h3>
+        <p>Launch MindToss and capture your thought via text, voice, or photo.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Tap "Toss"</h3>
+        <p>One tap sends your thought directly to your email inbox.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Process Later</h3>
+        <p>Review and organize your thoughts when you're ready.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta">
+    <h2>Start Capturing Today</h2>
+    <p>Free to download. Your thoughts deserve to be remembered.</p>
+    <a href="#" class="app-store-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+      </svg>
+      Download on App Store
+    </a>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-links">
+      <a href="/privacy.html">Privacy Policy</a>
+      <a href="/terms.html">Terms of Service</a>
+      <a href="/support.html">Support</a>
+      <a href="mailto:support@mindtoss.app">Contact</a>
+    </div>
+    <p class="copyright">&copy; 2025 MindToss. All rights reserved.</p>
+  </footer>
+</body>
+</html>

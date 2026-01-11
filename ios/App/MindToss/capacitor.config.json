@@ -1,0 +1,6 @@
+{
+	"appId": "com.mindtoss.app",
+	"appName": "MindToss",
+	"webDir": "dist",
+	"packageClassList": []
+}

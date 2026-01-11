@@ -290,6 +290,29 @@ eas credentials
 - Mail app must be configured on device
 - Check recipient email is valid
 
+**RevenueCat Offerings Error**
+If you see: "Failed to load offerings: There is an issue with your configuration..."
+
+This error occurs when RevenueCat SDK is configured but offerings aren't set up in the dashboard. You have two options:
+
+**Option 1: Configure RevenueCat Offerings (Recommended)**
+1. Go to [RevenueCat Dashboard](https://app.revenuecat.com)
+2. Select your project
+3. Go to **Offerings** in the sidebar
+4. Create a new offering (e.g., "default")
+5. Add products to the offering:
+   - Create products with IDs: `mindtoss_monthly` and `mindtoss_yearly`
+   - Link them to your App Store Connect subscriptions
+6. Set the offering as the default offering
+
+**Option 2: Suppress the Error (If not using offerings yet)**
+The error message states: "If you don't want to use the offerings system, you can safely ignore this message."
+- The error is non-fatal and won't crash your app
+- You can suppress it by configuring RevenueCat to not automatically fetch offerings
+- Or wait until you're ready to set up offerings in the dashboard
+
+For more details: https://rev.cat/how-to-configure-offerings
+
 ## License
 
 MIT License - See LICENSE file

@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   ios: {
     path: 'ios/App',
-    scheme: 'MindToss'
+    scheme: 'mindtoss'
   }
 };
 

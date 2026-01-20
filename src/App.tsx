@@ -23,8 +23,15 @@ import {
   Image as ImageIcon,
   FileText,
   Square,
-  Brain,
+  User,
+  FileText as FileTextIcon,
+  LogOut,
 } from 'lucide-react';
+import AuthScreen from './components/AuthScreen';
+import { supabase, signOut, onAuthStateChange, isSupabaseConfigured } from './lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 // Types
 interface TossItem {
@@ -49,6 +56,12 @@ interface SubscriptionPlan {
   price: string;
   period: string;
   features: string[];
+}
+
+interface UserProfile {
+  username: string;
+  displayName: string;
+  email: string;
 }
 
 // Constants
@@ -101,8 +114,12 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 
 // Main App Component
 export default function App() {
+  // Auth State
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   // State
-  const [currentScreen, setCurrentScreen] = useState<'onboarding' | 'main' | 'settings' | 'history' | 'subscription'>('onboarding');
+  const [currentScreen, setCurrentScreen] = useState<'auth' | 'onboarding' | 'main' | 'settings' | 'history' | 'subscription' | 'profile'>('auth');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [inputMode, setInputMode] = useState<'text' | 'voice' | 'photo'>('text');
   const [textInput, setTextInput] = useState('');
@@ -119,6 +136,14 @@ export default function App() {
   const [isSending, setIsSending] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [sendButtonScale, setSendButtonScale] = useState(1);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    username: '',
+    displayName: '',
+    email: '',
+  });
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editUsername, setEditUsername] = useState('');
+  const [editDisplayName, setEditDisplayName] = useState('');
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -134,10 +159,111 @@ export default function App() {
     border: isDarkMode ? COLORS.borderDark : COLORS.border,
   };
 
+  // Auth state listener
+  useEffect(() => {
+    // If Supabase is not configured, skip auth and go straight to onboarding/main
+    if (!isSupabaseConfigured()) {
+      setAuthLoading(false);
+      const hasOnboarded = localStorage.getItem('hasOnboarded');
+      setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
+      return;
+    }
+
+    // Handle deep links from OAuth redirects (for Apple Sign In)
+    const handleAppUrl = async (event: any) => {
+      const url = event.url;
+      console.log('Deep link received:', url);
+
+      // Close the in-app browser if it's open
+      try {
+        await Browser.close();
+      } catch (e) {
+        // Browser might not be open, ignore
+      }
+
+      if (url && url.includes('#access_token=')) {
+        // Handle OAuth callback
+        const hashParams = new URLSearchParams(url.split('#')[1]);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (accessToken && supabase) {
+          // Exchange the tokens for a session
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+
+          if (!error && data.session) {
+            setUser(data.session.user);
+            const hasOnboarded = localStorage.getItem('hasOnboarded');
+            setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
+          }
+        }
+      }
+    };
+
+    // Listen for app URL events (deep links)
+    if ((window as any).Capacitor) {
+      CapacitorApp.addListener('appUrlOpen', handleAppUrl);
+    }
+
+    // Check current session
+    supabase!.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        const hasOnboarded = localStorage.getItem('hasOnboarded');
+        setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
+      } else {
+        setCurrentScreen('auth');
+      }
+      setAuthLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (event === 'SIGNED_IN' && session?.user) {
+        const hasOnboarded = localStorage.getItem('hasOnboarded');
+        setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentScreen('auth');
+      }
+    });
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+      if ((window as any).Capacitor) {
+        CapacitorApp.removeAllListeners();
+      }
+    };
+  }, []);
+
   // Load saved data on mount
   useEffect(() => {
-    loadSavedData();
-  }, []);
+    if (user) {
+      loadSavedData();
+    }
+  }, [user]);
+
+  // Initialize profile email when email accounts are loaded
+  useEffect(() => {
+    if (emailAccounts.length > 0 && !userProfile.email) {
+      const defaultEmail = emailAccounts[0].email;
+      const updatedProfile = {
+        ...userProfile,
+        email: defaultEmail,
+        username: userProfile.username || defaultEmail.split('@')[0] || 'user',
+        displayName: userProfile.displayName || defaultEmail.split('@')[0] || 'User',
+      };
+      setUserProfile(updatedProfile);
+      setEditUsername(updatedProfile.username);
+      setEditDisplayName(updatedProfile.displayName);
+      saveUserProfile(updatedProfile);
+    }
+  }, [emailAccounts]);
 
   // Recording timer
   useEffect(() => {
@@ -158,15 +284,34 @@ export default function App() {
       const savedHistory = localStorage.getItem('tossHistory');
       const savedDarkMode = localStorage.getItem('darkMode');
       const savedSubscription = localStorage.getItem('isSubscribed');
-      const hasOnboarded = localStorage.getItem('hasOnboarded');
+      const savedProfile = localStorage.getItem('userProfile');
 
       if (savedEmails) setEmailAccounts(JSON.parse(savedEmails));
       if (savedHistory) setHistory(JSON.parse(savedHistory));
       if (savedDarkMode) setIsDarkMode(JSON.parse(savedDarkMode));
       if (savedSubscription) setIsSubscribed(JSON.parse(savedSubscription));
-      if (hasOnboarded === 'true') setCurrentScreen('main');
+      if (savedProfile) {
+        const profile = JSON.parse(savedProfile);
+        setUserProfile(profile);
+        setEditUsername(profile.username || '');
+        setEditDisplayName(profile.displayName || '');
+      }
     } catch (error) {
       console.error('Error loading data:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (confirm('Are you sure you want to sign out?')) {
+      await signOut();
+      // Clear local data on logout
+      localStorage.removeItem('emailAccounts');
+      localStorage.removeItem('tossHistory');
+      localStorage.removeItem('hasOnboarded');
+      localStorage.removeItem('userProfile');
+      setEmailAccounts([]);
+      setHistory([]);
+      setUserProfile({ username: '', displayName: '', email: '' });
     }
   };
 
@@ -184,6 +329,29 @@ export default function App() {
     } catch (error) {
       console.error('Error saving history:', error);
     }
+  };
+
+  const saveUserProfile = (profile: UserProfile) => {
+    try {
+      localStorage.setItem('userProfile', JSON.stringify(profile));
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    }
+  };
+
+  const updateUserProfile = () => {
+    if (!editUsername.trim()) {
+      alert('Username is required');
+      return;
+    }
+    const updatedProfile: UserProfile = {
+      username: editUsername.trim(),
+      displayName: editDisplayName.trim() || editUsername.trim(),
+      email: userProfile.email || emailAccounts[0]?.email || '',
+    };
+    setUserProfile(updatedProfile);
+    saveUserProfile(updatedProfile);
+    setEditingProfile(false);
   };
 
   const animateSendButton = () => {
@@ -789,6 +957,19 @@ export default function App() {
       fontSize: 14,
       color: theme.textLight,
     },
+    settingSubtext: {
+      fontSize: 13,
+      marginTop: 4,
+      color: theme.textLight,
+    },
+    editButton: {
+      background: 'transparent',
+      padding: 8,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+    },
     emailRow: {
       display: 'flex',
       justifyContent: 'space-between',
@@ -1122,7 +1303,8 @@ export default function App() {
         title: 'Welcome to MindToss',
         subtitle: "Don't forget a thing!",
         description: 'Capture your thoughts instantly and send them straight to your inbox.',
-        icon: Brain,
+        icon: null, // Use mascot image instead
+        useMascot: true,
       },
       {
         title: 'Speak, Snap, or Type',
@@ -1145,7 +1327,7 @@ export default function App() {
       },
     ];
 
-    const currentStep = steps[onboardingStep];
+    const currentStep = steps[onboardingStep] as any;
     const IconComponent = currentStep.icon;
 
     return (
@@ -1166,7 +1348,11 @@ export default function App() {
         {/* Content */}
         <div style={styles.onboardingContent}>
           <div style={styles.iconCircle}>
-            <IconComponent size={60} color={COLORS.primary} />
+            {currentStep.useMascot ? (
+              <img src="/assets/favicon.png" alt="MindToss" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+            ) : (
+              <IconComponent size={60} color={COLORS.primary} />
+            )}
           </div>
 
           <h1 style={styles.onboardingTitle}>{currentStep.title}</h1>
@@ -1466,6 +1652,28 @@ export default function App() {
       </div>
 
       <div style={styles.settingsList}>
+        {/* Profile Section */}
+        <p style={styles.sectionTitle}>PROFILE</p>
+        <div style={styles.settingsCard}>
+          <button
+            style={styles.settingRow}
+            onClick={() => {
+              setEditUsername(userProfile.username);
+              setEditDisplayName(userProfile.displayName);
+              setCurrentScreen('profile');
+            }}
+          >
+            <div style={styles.settingInfo}>
+              <User size={22} color={COLORS.primary} />
+              <div>
+                <span style={styles.settingLabel}>Profile</span>
+                <p style={styles.settingSubtext}>{userProfile.displayName || userProfile.username || 'Not set'}</p>
+              </div>
+            </div>
+            <ChevronRight size={20} color={theme.textLight} />
+          </button>
+        </div>
+
         {/* Email Accounts Section */}
         <p style={styles.sectionTitle}>EMAIL ACCOUNTS</p>
         <div style={styles.settingsCard}>
@@ -1576,6 +1784,31 @@ export default function App() {
               <span style={styles.settingLabel}>Privacy Policy</span>
             </div>
             <ChevronRight size={20} color={theme.textLight} />
+          </button>
+
+          <button
+            style={styles.settingRow}
+            onClick={() => window.open('https://mindtoss.app/terms', '_blank')}
+          >
+            <div style={styles.settingInfo}>
+              <FileTextIcon size={22} color={COLORS.primary} />
+              <span style={styles.settingLabel}>Terms of Service</span>
+            </div>
+            <ChevronRight size={20} color={theme.textLight} />
+          </button>
+        </div>
+
+        {/* Account Section */}
+        <p style={styles.sectionTitle}>ACCOUNT</p>
+        <div style={styles.settingsCard}>
+          <button
+            style={{ ...styles.settingRow, borderBottom: 'none' }}
+            onClick={handleLogout}
+          >
+            <div style={styles.settingInfo}>
+              <LogOut size={22} color={COLORS.error} />
+              <span style={{ ...styles.settingLabel, color: COLORS.error }}>Sign Out</span>
+            </div>
           </button>
         </div>
       </div>
@@ -1688,6 +1921,116 @@ export default function App() {
     </div>
   );
 
+  // Render Profile Screen
+  const renderProfile = () => (
+    <div style={styles.container}>
+      {/* Header */}
+      <div style={styles.settingsHeader}>
+        <button style={styles.iconButton} onClick={() => setCurrentScreen('settings')}>
+          <ArrowLeft size={26} color={theme.text} />
+        </button>
+        <span style={styles.settingsTitle}>Profile</span>
+        <div style={{ width: 42 }} />
+      </div>
+
+      <div style={styles.settingsList}>
+        {/* Profile Info Section */}
+        <p style={styles.sectionTitle}>PROFILE INFORMATION</p>
+        <div style={styles.settingsCard}>
+          <div style={styles.settingRow}>
+            <div style={styles.settingInfo}>
+              <User size={22} color={COLORS.primary} />
+              <div>
+                <span style={styles.settingLabel}>Display Name</span>
+                <p style={styles.settingSubtext}>{userProfile.displayName || 'Not set'}</p>
+              </div>
+            </div>
+            <button
+              style={styles.editButton}
+              onClick={() => {
+                setEditingProfile(true);
+                setEditUsername(userProfile.username);
+                setEditDisplayName(userProfile.displayName);
+              }}
+            >
+              <Edit3 size={18} color={COLORS.primary} />
+            </button>
+          </div>
+
+          <div style={styles.settingRow}>
+            <div style={styles.settingInfo}>
+              <Mail size={22} color={COLORS.primary} />
+              <div>
+                <span style={styles.settingLabel}>Username</span>
+                <p style={styles.settingSubtext}>{userProfile.username || 'Not set'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.settingRow}>
+            <div style={styles.settingInfo}>
+              <Mail size={22} color={COLORS.primary} />
+              <div>
+                <span style={styles.settingLabel}>Email</span>
+                <p style={styles.settingSubtext}>{userProfile.email || emailAccounts[0]?.email || 'Not set'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Profile Modal */}
+      {editingProfile && (
+        <div style={styles.modalOverlay} onClick={() => setEditingProfile(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 style={styles.modalTitle}>Edit Profile</h2>
+
+            <label style={{ ...styles.settingLabel, marginBottom: 8, display: 'block' }}>Username</label>
+            <input
+              style={styles.modalInput}
+              placeholder="Username"
+              value={editUsername}
+              onChange={(e) => setEditUsername(e.target.value)}
+              type="text"
+              autoCapitalize="none"
+            />
+
+            <label style={{ ...styles.settingLabel, marginBottom: 8, marginTop: 16, display: 'block' }}>Display Name</label>
+            <input
+              style={styles.modalInput}
+              placeholder="Display Name"
+              value={editDisplayName}
+              onChange={(e) => setEditDisplayName(e.target.value)}
+              type="text"
+            />
+
+            <div style={styles.modalButtons}>
+              <button
+                style={styles.modalCancelBtn}
+                onClick={() => {
+                  setEditingProfile(false);
+                  setEditUsername(userProfile.username);
+                  setEditDisplayName(userProfile.displayName);
+                }}
+              >
+                <span style={styles.modalCancelText}>Cancel</span>
+              </button>
+
+              <button
+                style={styles.modalAddBtn}
+                onClick={() => {
+                  updateUserProfile();
+                }}
+              >
+                <span style={styles.modalAddText}>Save</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // Render Subscription Screen
   const renderSubscription = () => (
     <div style={styles.container}>
@@ -1765,8 +2108,27 @@ export default function App() {
     </div>
   );
 
+  // Loading state
+  if (authLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <img src="/assets/favicon.png" alt="MindToss" style={{ width: 80, height: 80, objectFit: 'contain' }} />
+        <p style={{ color: '#FFF', marginTop: 16, fontSize: 18 }}>Loading...</p>
+      </div>
+    );
+  }
+
   // Main render
   switch (currentScreen) {
+    case 'auth':
+      return <AuthScreen onAuthSuccess={() => setCurrentScreen('onboarding')} isDarkMode={isDarkMode} />;
     case 'onboarding':
       return renderOnboarding();
     case 'settings':
@@ -1775,6 +2137,8 @@ export default function App() {
       return renderHistory();
     case 'subscription':
       return renderSubscription();
+    case 'profile':
+      return renderProfile();
     default:
       return renderMainScreen();
   }

@@ -60,3 +60,10 @@ web-build/
 
 # TypeScript
 *.tsbuildinfo
+
+# Apple Developer Keys
+*.p8
+AuthKey_*.p8
+
+# Node scripts
+generate_*.js

@@ -26,6 +26,8 @@ import {
   User,
   FileText as FileTextIcon,
   LogOut,
+  Search,
+  Tag,
 } from 'lucide-react';
 import AuthScreen from './components/AuthScreen';
 import { LegalPages } from './components/LegalPages';
@@ -43,7 +45,23 @@ interface TossItem {
   timestamp: Date;
   sent: boolean;
   emailTo?: string;
+  category?: string;
 }
+
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+}
+
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'all', name: 'All', color: '#636E72', icon: 'folder' },
+  { id: 'ideas', name: 'Ideas', color: '#6C5CE7', icon: 'lightbulb' },
+  { id: 'tasks', name: 'Tasks', color: '#00B894', icon: 'check' },
+  { id: 'notes', name: 'Notes', color: '#0984E3', icon: 'file' },
+  { id: 'reminders', name: 'Reminders', color: '#FDCB6E', icon: 'bell' },
+];
 
 interface EmailAccount {
   id: string;
@@ -89,27 +107,36 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'monthly',
     name: 'Monthly',
-    price: '$2.99',
+    price: '$0.99',
     period: '/month',
     features: [
       'Unlimited tosses',
       'Voice memos',
       'Photo capture',
       'Multiple email accounts',
-      'History sync',
       'Dark mode',
     ],
   },
   {
     id: 'yearly',
     name: 'Yearly',
-    price: '$24.99',
+    price: '$4.99',
     period: '/year',
     features: [
-      'All Monthly features',
-      'Save 30%',
-      'Priority support',
-      'Early access to features',
+      'All features',
+      'Save 60%',
+      'Best value',
+    ],
+  },
+  {
+    id: 'lifetime',
+    name: 'Lifetime',
+    price: '$9.99',
+    period: 'once',
+    features: [
+      'All features forever',
+      'No subscription',
+      'Future updates included',
     ],
   },
 ];
@@ -133,6 +160,8 @@ export default function App() {
   const [selectedEmailIndex, setSelectedEmailIndex] = useState(0);
   const [history, setHistory] = useState<TossItem[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [dailyTossCount, setDailyTossCount] = useState(0);
+  const [lastTossDate, setLastTossDate] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newAlias, setNewAlias] = useState('');
@@ -148,6 +177,11 @@ export default function App() {
   const [editUsername, setEditUsername] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
   const [viewingLegalPage, setViewingLegalPage] = useState<'support' | 'privacy' | 'terms' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState('');
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -173,7 +207,7 @@ export default function App() {
       return;
     }
 
-    // Handle deep links from OAuth redirects (for Apple Sign In)
+    // Handle deep links from OAuth redirects (for Apple Sign In) and widget/share extension
     const handleAppUrl = async (event: any) => {
       const url = event.url;
       console.log('Deep link received:', url);
@@ -183,6 +217,38 @@ export default function App() {
         await Browser.close();
       } catch (e) {
         // Browser might not be open, ignore
+      }
+
+      // Handle widget and share extension deep links
+      if (url) {
+        const urlObj = new URL(url);
+        const scheme = urlObj.protocol.replace(':', '');
+        
+        if (scheme === 'mindtoss') {
+          const path = urlObj.pathname || urlObj.host;
+          
+          // Handle toss mode deep links from widget
+          if (path === 'toss/text' || url.includes('mindtoss://toss/text')) {
+            setCurrentScreen('main');
+            setInputMode('text');
+            return;
+          } else if (path === 'toss/voice' || url.includes('mindtoss://toss/voice')) {
+            setCurrentScreen('main');
+            setInputMode('voice');
+            return;
+          } else if (path === 'toss/photo' || url.includes('mindtoss://toss/photo')) {
+            setCurrentScreen('main');
+            setInputMode('photo');
+            return;
+          } else if (path === 'share' || url.includes('mindtoss://share')) {
+            // Handle shared content from share extension
+            handleSharedContent();
+            return;
+          } else if (path === 'open' || url.includes('mindtoss://open')) {
+            setCurrentScreen('main');
+            return;
+          }
+        }
       }
 
       if (url && url.includes('#access_token=')) {
@@ -207,9 +273,50 @@ export default function App() {
       }
     };
 
+    // Function to handle shared content from share extension
+    const handleSharedContent = async () => {
+      try {
+        // Try to get shared content from native storage (via Capacitor plugin or shared UserDefaults)
+        // For now, we'll use localStorage as a bridge (native code should write here)
+        const pendingShare = localStorage.getItem('pendingSharedToss');
+        if (pendingShare) {
+          const shareData = JSON.parse(pendingShare);
+          localStorage.removeItem('pendingSharedToss'); // Clear after reading
+          
+          setCurrentScreen('main');
+          setInputMode('text');
+          
+          if (shareData.text) {
+            setTextInput(shareData.text);
+          }
+          if (shareData.url) {
+            setTextInput((prev) => prev ? `${prev}\n\n${shareData.url}` : shareData.url);
+          }
+        }
+      } catch (error) {
+        console.error('Error handling shared content:', error);
+        setCurrentScreen('main');
+      }
+    };
+
+    // Check for pending shared content on app launch
+    const checkPendingShare = () => {
+      const pendingShare = localStorage.getItem('pendingSharedToss');
+      if (pendingShare) {
+        handleSharedContent();
+      }
+    };
+
     // Listen for app URL events (deep links)
     if ((window as any).Capacitor) {
       CapacitorApp.addListener('appUrlOpen', handleAppUrl);
+      
+      // Also check when app becomes active (in case share was pending)
+      CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          checkPendingShare();
+        }
+      });
     }
 
     // Check current session
@@ -288,11 +395,25 @@ export default function App() {
       const savedDarkMode = localStorage.getItem('darkMode');
       const savedSubscription = localStorage.getItem('isSubscribed');
       const savedProfile = localStorage.getItem('userProfile');
+      const savedTossCount = localStorage.getItem('dailyTossCount');
+      const savedTossDate = localStorage.getItem('lastTossDate');
+      const savedCategories = localStorage.getItem('categories');
 
       if (savedEmails) setEmailAccounts(JSON.parse(savedEmails));
       if (savedHistory) setHistory(JSON.parse(savedHistory));
       if (savedDarkMode) setIsDarkMode(JSON.parse(savedDarkMode));
       if (savedSubscription) setIsSubscribed(JSON.parse(savedSubscription));
+      if (savedCategories) setCategories(JSON.parse(savedCategories));
+
+      // Load daily toss tracking (reset if new day)
+      const today = new Date().toDateString();
+      if (savedTossDate === today && savedTossCount) {
+        setDailyTossCount(parseInt(savedTossCount, 10));
+        setLastTossDate(savedTossDate);
+      } else {
+        setDailyTossCount(0);
+        setLastTossDate(today);
+      }
       if (savedProfile) {
         const profile = JSON.parse(savedProfile);
         setUserProfile(profile);
@@ -515,6 +636,31 @@ export default function App() {
   };
 
   const sendToss = async () => {
+    // Free tier limit: 3 tosses per day
+    const FREE_DAILY_LIMIT = 3;
+    const today = new Date().toDateString();
+
+    if (!isSubscribed) {
+      let currentCount = dailyTossCount;
+      let currentDate = lastTossDate;
+
+      // Reset count if it's a new day
+      if (currentDate !== today) {
+        currentCount = 0;
+        currentDate = today;
+        setLastTossDate(today);
+        setDailyTossCount(0);
+        localStorage.setItem('lastTossDate', today);
+        localStorage.setItem('dailyTossCount', '0');
+      }
+
+      if (currentCount >= FREE_DAILY_LIMIT) {
+        setCurrentScreen('subscription');
+        alert(`Free Limit Reached: You've used ${FREE_DAILY_LIMIT} tosses today. Upgrade to Premium for unlimited tosses!`);
+        return;
+      }
+    }
+
     if (emailAccounts.length === 0) {
       alert('No Email: Please add an email address in settings first.');
       return;
@@ -642,6 +788,7 @@ export default function App() {
         timestamp: new Date(),
         sent: true,
         emailTo: targetEmail,
+        category: pendingCategory || undefined,
       };
 
       const updatedHistory = [newToss, ...history].slice(0, 100);
@@ -653,9 +800,19 @@ export default function App() {
       setCapturedImage(null);
       setCapturedPhotoNote('');
       setRecordingDuration(0);
+      setPendingCategory('');
+
+      // Update daily toss count for free users
+      if (!isSubscribed) {
+        const newCount = dailyTossCount + 1;
+        setDailyTossCount(newCount);
+        localStorage.setItem('dailyTossCount', newCount.toString());
+        localStorage.setItem('lastTossDate', new Date().toDateString());
+      }
 
       // Show success feedback
-      alert('Sent! Your thought has been tossed to your inbox.');
+      const remaining = isSubscribed ? '' : ` (${3 - dailyTossCount - 1} free tosses left today)`;
+      alert(`Sent! Your thought has been tossed to your inbox.${remaining}`);
 
     } catch (error: any) {
       console.error('Send error:', error);
@@ -1034,6 +1191,56 @@ export default function App() {
       fontSize: 16,
       border: `1px solid ${theme.border}`,
     },
+    // Category Picker
+    categoryPickerRow: {
+      display: 'flex',
+      justifyContent: 'center',
+      paddingTop: 12,
+    },
+    categoryPickerBtn: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      padding: '8px 14px',
+      borderRadius: 20,
+      backgroundColor: theme.card,
+      border: 'none',
+      cursor: 'pointer',
+    },
+    categoryPickerText: {
+      fontSize: 13,
+      fontWeight: 500,
+    },
+    categoryDropdown: {
+      marginLeft: 20,
+      marginRight: 20,
+      marginTop: 8,
+      borderRadius: 12,
+      backgroundColor: theme.card,
+      overflow: 'hidden',
+    },
+    categoryDropdownItem: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '12px 16px',
+      width: '100%',
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+    },
+    categoryDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+    },
+    categoryDropdownText: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: 500,
+      color: theme.text,
+      textAlign: 'left' as const,
+    },
     // Send Button
     sendContainer: {
       display: 'flex',
@@ -1288,6 +1495,75 @@ export default function App() {
       fontWeight: 600,
       color: '#FFF',
     },
+    // Search
+    searchContainer: {
+      paddingLeft: 20,
+      paddingRight: 20,
+      paddingBottom: 12,
+    },
+    searchBar: {
+      display: 'flex',
+      alignItems: 'center',
+      backgroundColor: theme.card,
+      borderRadius: 12,
+      padding: '12px 16px',
+      gap: 12,
+    },
+    searchInput: {
+      flex: 1,
+      border: 'none',
+      backgroundColor: 'transparent',
+      fontSize: 16,
+      color: theme.text,
+      outline: 'none',
+    },
+    clearSearchBtn: {
+      background: 'transparent',
+      padding: 4,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // Category Filter
+    categoryFilter: {
+      display: 'flex',
+      paddingLeft: 20,
+      paddingRight: 20,
+      paddingBottom: 12,
+      gap: 8,
+      overflowX: 'auto' as const,
+    },
+    categoryChip: {
+      paddingLeft: 14,
+      paddingRight: 14,
+      paddingTop: 8,
+      paddingBottom: 8,
+      borderRadius: 20,
+      border: '2px solid',
+      flexShrink: 0,
+      cursor: 'pointer',
+    },
+    categoryChipText: {
+      fontSize: 13,
+      fontWeight: 600,
+    },
+    categoryBadge: {
+      fontSize: 10,
+      fontWeight: 600,
+      color: '#FFF',
+      paddingLeft: 8,
+      paddingRight: 8,
+      paddingTop: 2,
+      paddingBottom: 2,
+      borderRadius: 10,
+      marginLeft: 8,
+    },
+    resultsCount: {
+      fontSize: 12,
+      color: theme.textLight,
+      paddingLeft: 20,
+      paddingBottom: 8,
+    },
     // History
     emptyHistory: {
       flex: 1,
@@ -1343,6 +1619,11 @@ export default function App() {
       fontWeight: 500,
       marginBottom: 4,
       color: theme.text,
+    },
+    historyItemMetaRow: {
+      display: 'flex',
+      alignItems: 'center',
+      flexWrap: 'wrap' as const,
     },
     historyItemMeta: {
       fontSize: 12,
@@ -1820,6 +2101,46 @@ export default function App() {
           )}
         </div>
 
+        {/* Category Picker */}
+        <div style={styles.categoryPickerRow}>
+          <button
+            style={styles.categoryPickerBtn}
+            onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+          >
+            <Tag size={16} color={pendingCategory ? categories.find(c => c.id === pendingCategory)?.color : theme.textLight} />
+            <span style={{
+              ...styles.categoryPickerText,
+              color: pendingCategory ? categories.find(c => c.id === pendingCategory)?.color : theme.textLight
+            }}>
+              {pendingCategory ? categories.find(c => c.id === pendingCategory)?.name : 'Add category'}
+            </span>
+            <ChevronDown size={14} color={theme.textLight} />
+          </button>
+        </div>
+
+        {/* Category Dropdown */}
+        {showCategoryPicker && (
+          <div style={styles.categoryDropdown}>
+            {categories.filter(c => c.id !== 'all').map((cat) => (
+              <button
+                key={cat.id}
+                style={{
+                  ...styles.categoryDropdownItem,
+                  backgroundColor: pendingCategory === cat.id ? `${cat.color}20` : 'transparent',
+                }}
+                onClick={() => {
+                  setPendingCategory(pendingCategory === cat.id ? '' : cat.id);
+                  setShowCategoryPicker(false);
+                }}
+              >
+                <div style={{ ...styles.categoryDot, backgroundColor: cat.color }} />
+                <span style={styles.categoryDropdownText}>{cat.name}</span>
+                {pendingCategory === cat.id && <Check size={16} color={cat.color} />}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Send Button */}
         <div style={styles.sendContainer}>
           <button
@@ -2092,65 +2413,149 @@ export default function App() {
   );
 
   // Render History Screen
-  const renderHistory = () => (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.settingsHeader}>
-        <button style={styles.iconButton} onClick={() => setCurrentScreen('main')}>
-          <ArrowLeft size={26} color={theme.text} />
-        </button>
-        <span style={styles.settingsTitle}>History</span>
-        <button
-          style={styles.iconButton}
-          onClick={() => {
-            if (confirm('Are you sure you want to clear all history?')) {
-              setHistory([]);
-              saveHistory([]);
-            }
-          }}
-        >
-          <Trash2 size={24} color={COLORS.error} />
-        </button>
-      </div>
+  const renderHistory = () => {
+    // Filter history based on search and category
+    const filteredHistory = history.filter((item) => {
+      const matchesSearch = searchQuery === '' ||
+        item.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.emailTo?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
 
-      {history.length === 0 ? (
-        <div style={styles.emptyHistory}>
-          <Clock size={60} color={theme.textLight} />
-          <p style={styles.emptyHistoryText}>No tosses yet</p>
-          <p style={styles.emptyHistorySubtext}>Your tossed thoughts will appear here</p>
+    return (
+      <div style={styles.container}>
+        {/* Header */}
+        <div style={styles.settingsHeader}>
+          <button style={styles.iconButton} onClick={() => { setCurrentScreen('main'); setSearchQuery(''); }}>
+            <ArrowLeft size={26} color={theme.text} />
+          </button>
+          <span style={styles.settingsTitle}>History</span>
+          <button
+            style={styles.iconButton}
+            onClick={() => {
+              if (confirm('Are you sure you want to clear all history?')) {
+                setHistory([]);
+                saveHistory([]);
+              }
+            }}
+          >
+            <Trash2 size={24} color={COLORS.error} />
+          </button>
         </div>
-      ) : (
-        <div style={styles.historyList}>
-          {history.map((item) => (
-            <div key={item.id} style={styles.historyItem}>
-              <div style={styles.historyItemHeader}>
-                <div style={styles.historyTypeIcon}>
-                  {item.type === 'text' ? (
-                    <FileText size={18} color="#FFF" />
-                  ) : item.type === 'voice' ? (
-                    <Mic size={18} color="#FFF" />
-                  ) : (
-                    <ImageIcon size={18} color="#FFF" />
-                  )}
-                </div>
-                <div style={styles.historyItemInfo}>
-                  <p style={styles.historyItemContent}>{item.content}</p>
-                  <p style={styles.historyItemMeta}>
-                    {new Date(item.timestamp).toLocaleString()} • {item.emailTo}
-                  </p>
-                </div>
-              </div>
-              {item.sent && (
-                <div style={styles.sentBadge}>
-                  <Check size={12} color="#FFF" />
-                </div>
-              )}
-            </div>
+
+        {/* Search Bar */}
+        <div style={styles.searchContainer}>
+          <div style={styles.searchBar}>
+            <Search size={20} color={theme.textLight} />
+            <input
+              type="text"
+              style={styles.searchInput}
+              placeholder="Search your tosses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button style={styles.clearSearchBtn} onClick={() => setSearchQuery('')}>
+                <X size={18} color={theme.textLight} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Filter */}
+        <div style={styles.categoryFilter}>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              style={{
+                ...styles.categoryChip,
+                backgroundColor: selectedCategory === cat.id ? cat.color : theme.card,
+                borderColor: cat.color,
+              }}
+              onClick={() => setSelectedCategory(cat.id)}
+            >
+              <span style={{
+                ...styles.categoryChipText,
+                color: selectedCategory === cat.id ? '#FFF' : theme.text,
+              }}>
+                {cat.name}
+              </span>
+            </button>
           ))}
         </div>
-      )}
-    </div>
-  );
+
+        {/* Results count */}
+        {(searchQuery || selectedCategory !== 'all') && (
+          <p style={styles.resultsCount}>
+            {filteredHistory.length} result{filteredHistory.length !== 1 ? 's' : ''} found
+          </p>
+        )}
+
+        {filteredHistory.length === 0 ? (
+          <div style={styles.emptyHistory}>
+            {searchQuery || selectedCategory !== 'all' ? (
+              <>
+                <Search size={60} color={theme.textLight} />
+                <p style={styles.emptyHistoryText}>No matching tosses</p>
+                <p style={styles.emptyHistorySubtext}>Try a different search or category</p>
+              </>
+            ) : (
+              <>
+                <Clock size={60} color={theme.textLight} />
+                <p style={styles.emptyHistoryText}>No tosses yet</p>
+                <p style={styles.emptyHistorySubtext}>Your tossed thoughts will appear here</p>
+              </>
+            )}
+          </div>
+        ) : (
+          <div style={styles.historyList}>
+            {filteredHistory.map((item) => (
+              <div key={item.id} style={styles.historyItem}>
+                <div style={styles.historyItemHeader}>
+                  <div style={{
+                    ...styles.historyTypeIcon,
+                    backgroundColor: item.category
+                      ? categories.find(c => c.id === item.category)?.color || COLORS.primary
+                      : COLORS.primary
+                  }}>
+                    {item.type === 'text' ? (
+                      <FileText size={18} color="#FFF" />
+                    ) : item.type === 'voice' ? (
+                      <Mic size={18} color="#FFF" />
+                    ) : (
+                      <ImageIcon size={18} color="#FFF" />
+                    )}
+                  </div>
+                  <div style={styles.historyItemInfo}>
+                    <p style={styles.historyItemContent}>{item.content}</p>
+                    <div style={styles.historyItemMetaRow}>
+                      <p style={styles.historyItemMeta}>
+                        {new Date(item.timestamp).toLocaleString()}
+                      </p>
+                      {item.category && item.category !== 'all' && (
+                        <span style={{
+                          ...styles.categoryBadge,
+                          backgroundColor: categories.find(c => c.id === item.category)?.color || COLORS.primary,
+                        }}>
+                          {categories.find(c => c.id === item.category)?.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {item.sent && (
+                  <div style={styles.sentBadge}>
+                    <Check size={12} color="#FFF" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Render Profile Screen
   const renderProfile = () => (

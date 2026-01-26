@@ -55,5 +55,29 @@
 	<string>MindToss needs photo library access to attach images to your notes.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>MindToss needs permission to save photos to your library.</string>
+	<key>NSSiriUsageDescription</key>
+	<string>MindToss uses Siri to let you quickly capture thoughts with your voice.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.mindtoss.app.toss</string>
+		<string>com.mindtoss.app.toss.text</string>
+		<string>com.mindtoss.app.toss.voice</string>
+		<string>com.mindtoss.app.toss.photo</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.mindtoss.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>mindtoss</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 </dict>
 </plist>

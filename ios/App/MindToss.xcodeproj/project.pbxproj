@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -17,7 +17,43 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		6CA4353F2F27A70600A70F6F /* AppleSignInPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CA4353E2F27A70600A70F6F /* AppleSignInPlugin.swift */; };
 		6CA435422F27B00000A70F6F /* MindTossBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CA435432F27B00000A70F6F /* MindTossBridgeViewController.swift */; };
+		6CA435472F2809D800A70F6F /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA435462F2809D800A70F6F /* WidgetKit.framework */; };
+		6CA435492F2809D800A70F6F /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CA435482F2809D800A70F6F /* SwiftUI.framework */; };
+		6CA4355A2F2809D900A70F6F /* MindTossWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6CA435442F2809D800A70F6F /* MindTossWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6CA4356F2F280A2400A70F6F /* MindTossShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6CA435652F280A2400A70F6F /* MindTossShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6CA435582F2809D900A70F6F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6CA435432F2809D800A70F6F;
+			remoteInfo = MindTossWidgetExtension;
+		};
+		6CA4356D2F280A2400A70F6F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6CA435642F280A2400A70F6F;
+			remoteInfo = MindTossShare;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6CA4355B2F2809D900A70F6F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6CA4355A2F2809D900A70F6F /* MindTossWidgetExtension.appex in Embed Foundation Extensions */,
+				6CA4356F2F280A2400A70F6F /* MindTossShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -32,8 +68,34 @@
 		6C4A96122F147D1E0069ACCB /* MindToss.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MindToss.entitlements; sourceTree = "<group>"; };
 		6CA4353E2F27A70600A70F6F /* AppleSignInPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSignInPlugin.swift; sourceTree = "<group>"; };
 		6CA435432F27B00000A70F6F /* MindTossBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindTossBridgeViewController.swift; sourceTree = "<group>"; };
+		6CA435442F2809D800A70F6F /* MindTossWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MindTossWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CA435462F2809D800A70F6F /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		6CA435482F2809D800A70F6F /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		6CA435652F280A2400A70F6F /* MindTossShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MindTossShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6CA4355E2F2809D900A70F6F /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6CA435432F2809D800A70F6F /* MindTossWidgetExtension */;
+		};
+		6CA435702F280A2400A70F6F /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6CA435642F280A2400A70F6F /* MindTossShare */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		6CA4354A2F2809D800A70F6F /* MindTossWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (6CA4355E2F2809D900A70F6F /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = MindTossWidget; sourceTree = "<group>"; };
+		6CA435662F280A2400A70F6F /* MindTossShare */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (6CA435702F280A2400A70F6F /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = MindTossShare; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		504EC3011FED79650016851F /* Frameworks */ = {
@@ -41,6 +103,22 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CA435412F2809D800A70F6F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6CA435492F2809D800A70F6F /* SwiftUI.framework in Frameworks */,
+				6CA435472F2809D800A70F6F /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CA435622F280A2400A70F6F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -52,6 +130,9 @@
 			children = (
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* MindToss */,
+				6CA4354A2F2809D800A70F6F /* MindTossWidget */,
+				6CA435662F280A2400A70F6F /* MindTossShare */,
+				6CA435452F2809D800A70F6F /* Frameworks */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -60,6 +141,8 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* MindToss.app */,
+				6CA435442F2809D800A70F6F /* MindTossWidgetExtension.appex */,
+				6CA435652F280A2400A70F6F /* MindTossShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,6 +165,15 @@
 			path = MindToss;
 			sourceTree = "<group>";
 		};
+		6CA435452F2809D800A70F6F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				6CA435462F2809D800A70F6F /* WidgetKit.framework */,
+				6CA435482F2809D800A70F6F /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -92,10 +184,13 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				6CA4355B2F2809D900A70F6F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6CA435592F2809D900A70F6F /* PBXTargetDependency */,
+				6CA4356E2F280A2400A70F6F /* PBXTargetDependency */,
 			);
 			name = MindToss;
 			packageProductDependencies = (
@@ -105,19 +200,69 @@
 			productReference = 504EC3041FED79650016851F /* MindToss.app */;
 			productType = "com.apple.product-type.application";
 		};
+		6CA435432F2809D800A70F6F /* MindTossWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6CA4355F2F2809D900A70F6F /* Build configuration list for PBXNativeTarget "MindTossWidgetExtension" */;
+			buildPhases = (
+				6CA435402F2809D800A70F6F /* Sources */,
+				6CA435412F2809D800A70F6F /* Frameworks */,
+				6CA435422F2809D800A70F6F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6CA4354A2F2809D800A70F6F /* MindTossWidget */,
+			);
+			name = MindTossWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = MindTossWidgetExtension;
+			productReference = 6CA435442F2809D800A70F6F /* MindTossWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		6CA435642F280A2400A70F6F /* MindTossShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6CA435712F280A2400A70F6F /* Build configuration list for PBXNativeTarget "MindTossShare" */;
+			buildPhases = (
+				6CA435612F280A2400A70F6F /* Sources */,
+				6CA435622F280A2400A70F6F /* Frameworks */,
+				6CA435632F280A2400A70F6F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6CA435662F280A2400A70F6F /* MindTossShare */,
+			);
+			name = MindTossShare;
+			packageProductDependencies = (
+			);
+			productName = MindTossShare;
+			productReference = 6CA435652F280A2400A70F6F /* MindTossShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
 		504EC2FC1FED79650016851F /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastSwiftUpdateCheck = 0920;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 0920;
 				TargetAttributes = {
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
 						LastSwiftMigration = 1100;
 						ProvisioningStyle = Automatic;
+					};
+					6CA435432F2809D800A70F6F = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					6CA435642F280A2400A70F6F = {
+						CreatedOnToolsVersion = 26.0.1;
 					};
 				};
 			};
@@ -138,6 +283,8 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* MindToss */,
+				6CA435432F2809D800A70F6F /* MindTossWidgetExtension */,
+				6CA435642F280A2400A70F6F /* MindTossShare */,
 			);
 		};
 /* End PBXProject section */
@@ -156,6 +303,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6CA435422F2809D800A70F6F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CA435632F280A2400A70F6F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -169,7 +330,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6CA435402F2809D800A70F6F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CA435612F280A2400A70F6F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6CA435592F2809D900A70F6F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6CA435432F2809D800A70F6F /* MindTossWidgetExtension */;
+			targetProxy = 6CA435582F2809D900A70F6F /* PBXContainerItemProxy */;
+		};
+		6CA4356E2F280A2400A70F6F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6CA435642F280A2400A70F6F /* MindTossShare */;
+			targetProxy = 6CA4356D2F280A2400A70F6F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -348,6 +536,170 @@
 			};
 			name = Release;
 		};
+		6CA4355C2F2809D900A70F6F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FQR3RAH9NH;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MindTossWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MindTossWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mindtoss.app.MindTossWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6CA4355D2F2809D900A70F6F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FQR3RAH9NH;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MindTossWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MindTossWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mindtoss.app.MindTossWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		6CA435722F280A2400A70F6F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FQR3RAH9NH;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MindTossShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MindTossShare;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mindtoss.app.MindTossShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6CA435732F280A2400A70F6F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FQR3RAH9NH;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MindTossShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MindTossShare;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mindtoss.app.MindTossShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -365,6 +717,24 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6CA4355F2F2809D900A70F6F /* Build configuration list for PBXNativeTarget "MindTossWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6CA4355C2F2809D900A70F6F /* Debug */,
+				6CA4355D2F2809D900A70F6F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6CA435712F280A2400A70F6F /* Build configuration list for PBXNativeTarget "MindTossShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6CA435722F280A2400A70F6F /* Debug */,
+				6CA435732F280A2400A70F6F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

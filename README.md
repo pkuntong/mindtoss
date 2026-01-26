@@ -319,8 +319,8 @@ MIT License - See LICENSE file
 
 ## Support
 
-- Email: support@mindtoss.app
-- Website: https://mindtoss.app
+- Email: support@mindtoss.space
+- Website: https://mindtoss.space
 
 ---
 

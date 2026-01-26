@@ -28,10 +28,12 @@ import {
   LogOut,
 } from 'lucide-react';
 import AuthScreen from './components/AuthScreen';
+import { LegalPages } from './components/LegalPages';
 import { supabase, signOut, onAuthStateChange, isSupabaseConfigured } from './lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
+import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 // Types
 interface TossItem {
@@ -126,6 +128,7 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedPhotoNote, setCapturedPhotoNote] = useState('');
   const [emailAccounts, setEmailAccounts] = useState<EmailAccount[]>([]);
   const [selectedEmailIndex, setSelectedEmailIndex] = useState(0);
   const [history, setHistory] = useState<TossItem[]>([]);
@@ -144,6 +147,7 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
+  const [viewingLegalPage, setViewingLegalPage] = useState<'support' | 'privacy' | 'terms' | null>(null);
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -272,9 +276,8 @@ export default function App() {
       interval = setInterval(() => {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
-    } else {
-      setRecordingDuration(0);
     }
+    // Don't reset duration when stopping - keep it to show the recorded length
     return () => clearInterval(interval);
   }, [isRecording]);
 
@@ -374,6 +377,8 @@ export default function App() {
         audioChunksRef.current.push(event.data);
       };
 
+      // Reset duration when starting a new recording
+      setRecordingDuration(0);
       mediaRecorder.start();
       setIsRecording(true);
     } catch (error) {
@@ -401,6 +406,41 @@ export default function App() {
     });
   };
 
+  // Stop recording and get base64 data for email attachment
+  const stopRecordingAndGetData = async (): Promise<{ base64: string; blob: Blob } | null> => {
+    return new Promise((resolve) => {
+      if (!mediaRecorderRef.current || !isRecording) {
+        // If not currently recording, check if we have existing audio chunks
+        if (audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(',')[1];
+            resolve({ base64, blob: audioBlob });
+          };
+          reader.readAsDataURL(audioBlob);
+          return;
+        }
+        resolve(null);
+        return;
+      }
+
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve({ base64, blob: audioBlob });
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+    });
+  };
+
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -409,6 +449,68 @@ export default function App() {
         setCapturedImage(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const isNative = (window as any).Capacitor?.isNativePlatform?.();
+      console.log('takePhoto - isNative:', isNative);
+
+      if (!isNative) {
+        // On web/simulator, use file input directly
+        fileInputRef.current?.click();
+        return;
+      }
+
+      const photo = await CapacitorCamera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera,
+      });
+      if (photo.dataUrl) {
+        setCapturedImage(photo.dataUrl);
+      }
+    } catch (error: any) {
+      console.error('Camera error:', error);
+      // If camera fails, fall back to file picker
+      if (error.code === 'USER_CANCELED' || error.message?.includes('canceled')) {
+        return; // User cancelled, do nothing
+      }
+      console.log('Camera failed, using file picker fallback');
+      fileInputRef.current?.click();
+    }
+  };
+
+  const chooseFromLibrary = async () => {
+    try {
+      const isNative = (window as any).Capacitor?.isNativePlatform?.();
+      console.log('chooseFromLibrary - isNative:', isNative);
+
+      if (!isNative) {
+        // On web/simulator, use file input directly
+        fileInputRef.current?.click();
+        return;
+      }
+
+      const photo = await CapacitorCamera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Photos,
+      });
+      if (photo.dataUrl) {
+        setCapturedImage(photo.dataUrl);
+      }
+    } catch (error: any) {
+      console.error('Photo picker error:', error);
+      if (error.code === 'USER_CANCELED' || error.message?.includes('canceled')) {
+        return;
+      }
+      // Fall back to file input
+      console.log('Photo picker failed, using file input fallback');
+      fileInputRef.current?.click();
     }
   };
 
@@ -422,6 +524,7 @@ export default function App() {
     if (!targetEmail) return;
 
     let content = '';
+    let attachment: { filename: string; content: string; contentType: string } | undefined;
 
     if (inputMode === 'text') {
       if (!textInput.trim()) {
@@ -430,9 +533,19 @@ export default function App() {
       }
       content = textInput;
     } else if (inputMode === 'voice') {
-      const voiceUri = await stopRecording();
-      if (voiceUri) {
-        content = '[Voice Memo]';
+      if (!isRecording && recordingDuration === 0) {
+        alert('No Recording: Please record a voice memo first.');
+        return;
+      }
+      // Stop recording and get the audio data
+      const audioData = await stopRecordingAndGetData();
+      if (audioData) {
+        content = `Voice memo (${formatDuration(recordingDuration)})`;
+        attachment = {
+          filename: `voice-memo-${Date.now()}.webm`,
+          content: audioData.base64,
+          contentType: 'audio/webm',
+        };
       } else {
         alert('No Recording: Please record a voice memo first.');
         return;
@@ -442,17 +555,84 @@ export default function App() {
         alert('No Photo: Please take or select a photo first.');
         return;
       }
-      content = '[Photo]';
+      content = capturedPhotoNote || 'Photo capture';
+      // Extract base64 from data URL
+      const base64Match = capturedImage.match(/^data:([^;]+);base64,(.+)$/);
+      if (base64Match) {
+        attachment = {
+          filename: `photo-${Date.now()}.${base64Match[1].split('/')[1] || 'jpg'}`,
+          content: base64Match[2],
+          contentType: base64Match[1],
+        };
+      }
     }
 
     setIsSending(true);
     animateSendButton();
 
     try {
-      // Open mail client with mailto
-      const subject = encodeURIComponent(`MindToss: ${new Date().toLocaleDateString()}`);
-      const body = encodeURIComponent(content);
-      window.open(`mailto:${targetEmail}?subject=${subject}&body=${body}`, '_blank');
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      let emailSent = false;
+
+      // Try to send via Supabase Edge Function
+      if (supabaseUrl && supabaseKey) {
+        try {
+          console.log('Sending email via Edge Function:', `${supabaseUrl}/functions/v1/send-email`);
+
+          const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              to: targetEmail,
+              subject: `MindToss: ${new Date().toLocaleDateString()}`,
+              content: content,
+              type: inputMode,
+              attachment: attachment,
+            }),
+          });
+
+          console.log('Edge Function response status:', response.status);
+
+          let result;
+          try {
+            result = await response.json();
+          } catch (e) {
+            console.error('Failed to parse response:', e);
+            throw new Error('Invalid response from email service');
+          }
+
+          console.log('Edge Function result:', result);
+
+          if (response.ok) {
+            emailSent = true;
+          } else {
+            console.warn('Edge Function failed:', result.error || result.message);
+            throw new Error(result.error || result.message || 'Edge Function failed');
+          }
+        } catch (edgeError: any) {
+          console.warn('Edge Function error, falling back to mailto:', edgeError.message);
+          // Fall back to mailto
+          const subject = encodeURIComponent(`MindToss: ${new Date().toLocaleDateString()}`);
+          const body = encodeURIComponent(content);
+          window.open(`mailto:${targetEmail}?subject=${subject}&body=${body}`, '_blank');
+          emailSent = true;
+        }
+      } else {
+        console.warn('Supabase not configured, using mailto');
+        const subject = encodeURIComponent(`MindToss: ${new Date().toLocaleDateString()}`);
+        const body = encodeURIComponent(content);
+        window.open(`mailto:${targetEmail}?subject=${subject}&body=${body}`, '_blank');
+        emailSent = true;
+      }
+
+      if (!emailSent) {
+        throw new Error('Failed to send email');
+      }
 
       // Add to history
       const newToss: TossItem = {
@@ -471,11 +651,15 @@ export default function App() {
       // Clear inputs
       setTextInput('');
       setCapturedImage(null);
+      setCapturedPhotoNote('');
       setRecordingDuration(0);
 
-    } catch (error) {
+      // Show success feedback
+      alert('Sent! Your thought has been tossed to your inbox.');
+
+    } catch (error: any) {
       console.error('Send error:', error);
-      alert('Error: Failed to send toss. Please try again.');
+      alert(`Error: ${error.message || 'Failed to send toss. Please try again.'}`);
     } finally {
       setIsSending(false);
     }
@@ -783,6 +967,16 @@ export default function App() {
       marginTop: 8,
       color: theme.textLight,
     },
+    clearRecordingBtn: {
+      marginTop: 16,
+      padding: '10px 20px',
+      backgroundColor: 'transparent',
+      border: `1px solid ${theme.textLight}`,
+      borderRadius: 20,
+      color: theme.textLight,
+      fontSize: 14,
+      cursor: 'pointer',
+    },
     // Photo
     photoContainer: {
       flex: 1,
@@ -821,14 +1015,24 @@ export default function App() {
     },
     removeImageBtn: {
       position: 'absolute' as const,
-      top: -10,
-      right: -10,
-      backgroundColor: '#FFF',
-      borderRadius: 15,
-      padding: 0,
+      top: 8,
+      right: 8,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      borderRadius: 20,
+      padding: 8,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    photoNoteInput: {
+      width: '100%',
+      marginTop: 12,
+      padding: '12px 16px',
+      borderRadius: 12,
+      backgroundColor: theme.card,
+      color: theme.text,
+      fontSize: 16,
+      border: `1px solid ${theme.border}`,
     },
     // Send Button
     sendContainer: {
@@ -1530,7 +1734,7 @@ export default function App() {
               <div
                 style={{
                   ...styles.recordingCircle,
-                  backgroundColor: isRecording ? COLORS.error : theme.card,
+                  backgroundColor: isRecording ? COLORS.error : (recordingDuration > 0 && !isRecording) ? COLORS.success : theme.card,
                   transform: isRecording ? 'scale(1.1)' : 'scale(1)',
                 }}
               >
@@ -1540,6 +1744,8 @@ export default function App() {
                 >
                   {isRecording ? (
                     <Square size={50} color="#FFF" fill="#FFF" />
+                  ) : recordingDuration > 0 ? (
+                    <Mic size={50} color="#FFF" />
                   ) : (
                     <Mic size={50} color={COLORS.primary} />
                   )}
@@ -1547,11 +1753,21 @@ export default function App() {
               </div>
 
               <p style={styles.recordingText}>
-                {isRecording ? formatDuration(recordingDuration) : 'Tap to record'}
+                {isRecording ? formatDuration(recordingDuration) :
+                 recordingDuration > 0 ? `Ready (${formatDuration(recordingDuration)})` : 'Tap to record'}
               </p>
               <p style={styles.recordingHint}>
-                {isRecording ? 'Tap stop when done' : 'Click to start recording'}
+                {isRecording ? 'Tap stop when done' :
+                 recordingDuration > 0 ? 'Tap TOSS to send or record again' : 'Tap the microphone to start'}
               </p>
+              {recordingDuration > 0 && !isRecording && (
+                <button
+                  style={styles.clearRecordingBtn}
+                  onClick={() => { audioChunksRef.current = []; setRecordingDuration(0); }}
+                >
+                  Clear Recording
+                </button>
+              )}
             </div>
           )}
 
@@ -1562,19 +1778,33 @@ export default function App() {
                   <img src={capturedImage} style={styles.imagePreview} alt="Captured" />
                   <button
                     style={styles.removeImageBtn}
-                    onClick={() => setCapturedImage(null)}
+                    onClick={() => { setCapturedImage(null); setCapturedPhotoNote(''); }}
                   >
-                    <X size={30} color={COLORS.error} />
+                    <X size={24} color="#FFF" />
                   </button>
+                  <input
+                    type="text"
+                    style={styles.photoNoteInput}
+                    placeholder="Add a note (optional)..."
+                    value={capturedPhotoNote}
+                    onChange={(e) => setCapturedPhotoNote(e.target.value)}
+                  />
                 </div>
               ) : (
                 <div style={styles.photoButtons}>
                   <button
                     style={styles.photoBtn}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={takePhoto}
                   >
-                    <ImageIcon size={40} color={COLORS.primary} />
-                    <span style={styles.photoBtnText}>Choose Photo</span>
+                    <Camera size={36} color={COLORS.primary} />
+                    <span style={styles.photoBtnText}>Take Photo</span>
+                  </button>
+                  <button
+                    style={styles.photoBtn}
+                    onClick={chooseFromLibrary}
+                  >
+                    <ImageIcon size={36} color={COLORS.primary} />
+                    <span style={styles.photoBtnText}>Library</span>
                   </button>
                 </div>
               )}
@@ -1582,6 +1812,7 @@ export default function App() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                capture="environment"
                 style={{ display: 'none' }}
                 onChange={handleImageSelect}
               />
@@ -1766,7 +1997,7 @@ export default function App() {
 
           <button
             style={styles.settingRow}
-            onClick={() => window.open('mailto:support@mindtoss.app', '_blank')}
+            onClick={() => setViewingLegalPage('support')}
           >
             <div style={styles.settingInfo}>
               <HelpCircle size={22} color={COLORS.primary} />
@@ -1777,7 +2008,7 @@ export default function App() {
 
           <button
             style={styles.settingRow}
-            onClick={() => window.open('https://mindtoss.app/privacy', '_blank')}
+            onClick={() => setViewingLegalPage('privacy')}
           >
             <div style={styles.settingInfo}>
               <Shield size={22} color={COLORS.primary} />
@@ -1788,7 +2019,7 @@ export default function App() {
 
           <button
             style={styles.settingRow}
-            onClick={() => window.open('https://mindtoss.app/terms', '_blank')}
+            onClick={() => setViewingLegalPage('terms')}
           >
             <div style={styles.settingInfo}>
               <FileTextIcon size={22} color={COLORS.primary} />
@@ -2122,6 +2353,17 @@ export default function App() {
         <img src="/assets/favicon.png" alt="MindToss" style={{ width: 80, height: 80, objectFit: 'contain' }} />
         <p style={{ color: '#FFF', marginTop: 16, fontSize: 18 }}>Loading...</p>
       </div>
+    );
+  }
+
+  // If viewing legal page, show that instead
+  if (viewingLegalPage) {
+    return (
+      <LegalPages
+        page={viewingLegalPage}
+        onBack={() => setViewingLegalPage(null)}
+        theme={theme}
+      />
     );
   }
 

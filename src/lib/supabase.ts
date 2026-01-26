@@ -1,9 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
-import { SignInWithApple, SignInWithAppleOptions, SignInWithAppleResponse } from '@capacitor-community/apple-sign-in';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Define the native Apple Sign In plugin interface
+interface AppleSignInResponse {
+    response: {
+        user: string;
+        email?: string;
+        givenName?: string;
+        familyName?: string;
+        identityToken?: string;
+        authorizationCode?: string;
+        state?: string;
+    };
+}
+
+interface AppleSignInPlugin {
+    authorize(options?: { nonce?: string; state?: string }): Promise<AppleSignInResponse>;
+}
+
+// Register the native plugin
+const NativeAppleSignIn = registerPlugin<AppleSignInPlugin>('AppleSignIn');
 
 // Make Supabase optional - only create client if env vars are present
 export const supabase = (supabaseUrl && supabaseAnonKey) 
@@ -47,49 +67,64 @@ export const signInWithApple = async () => {
     }
 
     // Detect if running in Capacitor (iOS/Android)
-    const isCapacitor = (window as any).Capacitor !== undefined;
-    const isNativePlatform = isCapacitor && (window as any).Capacitor?.getPlatform?.() === 'ios';
+    const isNativePlatform = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
 
-    console.log('Apple Sign In - isCapacitor:', isCapacitor, 'isNative:', isNativePlatform);
+    console.log('Apple Sign In - isNative:', isNativePlatform);
 
     if (isNativePlatform) {
         // Use native Sign in with Apple for iOS
         try {
-            // Check if the plugin is available
-            if (!SignInWithApple || !SignInWithApple.authorize) {
-                console.error('SignInWithApple plugin not available');
-                throw new Error('Apple Sign In is not available. Please update the app.');
-            }
-
-            const options: SignInWithAppleOptions = {
-                clientId: import.meta.env.VITE_APPLE_CLIENT_ID || 'com.mindtoss.app',
-                redirectURI: `${supabaseUrl}/auth/v1/callback`,
-                scopes: 'email name',
-                state: Math.random().toString(36).substring(7),
-                nonce: Math.random().toString(36).substring(7),
-            };
-
-            console.log('Calling SignInWithApple.authorize with options:', options);
-            const result: SignInWithAppleResponse = await SignInWithApple.authorize(options);
+            console.log('Calling native AppleSignIn.authorize (no nonce for native)');
+            const result = await NativeAppleSignIn.authorize({});
             console.log('Apple Sign In result:', result);
 
             if (!result.response?.identityToken) {
                 throw new Error('No identity token received from Apple');
             }
 
-            // Pass the identity token to Supabase
+            // For native iOS Sign In with Apple, pass the identity token without nonce
+            // Apple's native authentication doesn't require nonce verification by Supabase
+            console.log('Calling Supabase signInWithIdToken with token length:', result.response.identityToken.length);
             const { data, error } = await supabase.auth.signInWithIdToken({
                 provider: 'apple',
                 token: result.response.identityToken,
             });
 
             if (error) {
-                console.error('Supabase signInWithIdToken error:', error);
+                console.error('Supabase signInWithIdToken FULL error:', error);
+                console.error('Error keys:', Object.keys(error));
+                console.error('Error message:', error.message);
+                console.error('Error status:', error.status);
+                console.error('Error name:', error.name);
+                console.error('Error stringified:', JSON.stringify(error));
+            } else {
+                console.log('SUCCESS! User signed in:', data?.user?.email);
+                // Apple only provides full name on first sign-in
+                // Save it to user metadata if available
+                if (result.response.givenName || result.response.familyName) {
+                    const fullName = [result.response.givenName, result.response.familyName]
+                        .filter(Boolean)
+                        .join(' ');
+                    
+                    await supabase.auth.updateUser({
+                        data: {
+                            full_name: fullName,
+                            given_name: result.response.givenName,
+                            family_name: result.response.familyName,
+                        }
+                    });
+                }
             }
 
             return { data, error };
         } catch (err: any) {
             console.error('Apple Sign In error:', err);
+            
+            // Check if user cancelled
+            if (err.code === 'USER_CANCELED') {
+                return { data: null, error: { message: 'Sign in cancelled' } };
+            }
+            
             // If native fails, try fallback to in-app browser OAuth
             console.log('Falling back to in-app browser OAuth...');
             return await signInWithAppleViaInAppBrowser();

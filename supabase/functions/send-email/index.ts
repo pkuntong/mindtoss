@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SMTP2GO_API_KEY = Deno.env.get("SMTP2GO_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,14 +20,13 @@ interface EmailRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    if (!RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not configured");
+    if (!SMTP2GO_API_KEY) {
+      throw new Error("SMTP2GO_API_KEY is not configured");
     }
 
     const { to, subject, content, type, attachment }: EmailRequest = await req.json();
@@ -36,7 +35,6 @@ serve(async (req) => {
       throw new Error("Missing required fields: to, subject");
     }
 
-    // Build email HTML
     let htmlContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%); padding: 20px; border-radius: 12px 12px 0 0;">
@@ -63,7 +61,7 @@ serve(async (req) => {
       htmlContent += `
         <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #FF6B35;">
           <p style="margin: 0; font-size: 14px; color: #666;">📷 Photo attached</p>
-          ${attachment ? `<img src="cid:attachment" style="max-width: 100%; border-radius: 8px; margin-top: 12px;" />` : ""}
+          ${attachment ? `<img src="cid:photo" style="max-width: 100%; border-radius: 8px; margin-top: 12px;" />` : ""}
           ${content ? `<p style="margin: 12px 0 0 0; font-size: 16px; color: #333;">${content}</p>` : ""}
         </div>
       `;
@@ -77,32 +75,27 @@ serve(async (req) => {
       </div>
     `;
 
-    // Build Resend request
-    // Use test email since it doesn't require domain verification
-    // For production, set up a verified domain in Resend and change this to your domain
     const emailPayload: any = {
-      from: "noreply@resend.dev",
+      api_key: SMTP2GO_API_KEY,
       to: [to],
+      sender: "noreply@mindtoss.space",
       subject: subject,
-      html: htmlContent,
-      reply_to: to, // Let users reply back to themselves
+      html_body: htmlContent,
     };
 
-    // Add attachment if present
     if (attachment) {
       emailPayload.attachments = [
         {
           filename: attachment.filename,
-          content: attachment.content,
-          content_type: attachment.contentType,
+          fileblob: attachment.content,
+          mimetype: attachment.contentType,
         },
       ];
     }
 
-    const response = await fetch("https://api.resend.com/emails", {
+    const response = await fetch("https://api.smtp2go.com/v3/email/send", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(emailPayload),
@@ -110,12 +103,16 @@ serve(async (req) => {
 
     const result = await response.json();
 
-    if (!response.ok) {
-      console.error("Resend API error:", result);
-      throw new Error(result.message || "Failed to send email");
+    console.log("SMTP2Go response status:", response.status);
+    console.log("SMTP2Go response body:", JSON.stringify(result));
+    console.log("SMTP2Go request_id:", result.request_id);
+
+    if (!response.ok || result.request_id === undefined) {
+      console.error("SMTP2Go API error:", JSON.stringify(result));
+      throw new Error(result.message || result.errors?.[0] || "Failed to send email via SMTP2Go");
     }
 
-    return new Response(JSON.stringify({ success: true, id: result.id }), {
+    return new Response(JSON.stringify({ success: true, request_id: result.request_id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

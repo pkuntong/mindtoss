@@ -258,33 +258,17 @@ class ShareViewController: UIViewController {
             return
         }
         
-        // Try to open via UIApplication extension
-        var responder: UIResponder? = self
-        while responder != nil {
-            if let application = responder as? UIApplication {
-                application.open(url, options: [:]) { [weak self] _ in
-                    self?.completeExtension()
-                }
-                return
-            }
-            responder = responder?.next
-        }
-        
-        // Fallback: just complete
-        completeExtension()
+        // Use extension context to open the main app
+        // This is the proper way to open URLs from app extensions
+        extensionContext?.open(url, completionHandler: { [weak self] success in
+            // Complete the extension after opening the app
+            self?.completeExtension()
+        })
     }
     
     private func completeExtension() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
         }
-    }
-}
-
-// MARK: - UIApplication Extension for Share Extension
-
-extension UIApplication {
-    static func openURL(_ url: URL) {
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
 }

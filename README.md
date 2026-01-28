@@ -159,9 +159,8 @@ eas submit --platform ios
 1. Go to [App Store Connect](https://appstoreconnect.apple.com)
 2. Create your app
 3. Go to **Features > In-App Purchases**
-4. Add subscriptions:
+4. Add subscription:
    - `mindtoss_monthly` - $2.99/month
-   - `mindtoss_yearly` - $24.99/year
 
 ### 2. Add Revenue Cat (Recommended)
 
@@ -256,8 +255,7 @@ PREMIUM SUBSCRIPTION:
 • Priority support
 
 Subscription pricing:
-• Monthly: $2.99/month
-• Yearly: $24.99/year (save 30%!)
+• $2.99/month
 
 Subscriptions automatically renew unless cancelled 24 hours before the end of the current period.
 ```
@@ -301,8 +299,8 @@ This error occurs when RevenueCat SDK is configured but offerings aren't set up 
 3. Go to **Offerings** in the sidebar
 4. Create a new offering (e.g., "default")
 5. Add products to the offering:
-   - Create products with IDs: `mindtoss_monthly` and `mindtoss_yearly`
-   - Link them to your App Store Connect subscriptions
+   - Create product with ID: `mindtoss_monthly`
+   - Link it to your App Store Connect subscription
 6. Set the offering as the default offering
 
 **Option 2: Suppress the Error (If not using offerings yet)**

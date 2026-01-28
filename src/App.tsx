@@ -106,8 +106,8 @@ const COLORS = {
 const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'monthly',
-    name: 'Monthly',
-    price: '$0.99',
+    name: 'Premium',
+    price: '$2.99',
     period: '/month',
     features: [
       'Unlimited tosses',
@@ -115,31 +115,74 @@ const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       'Photo capture',
       'Multiple email accounts',
       'Dark mode',
-    ],
-  },
-  {
-    id: 'yearly',
-    name: 'Yearly',
-    price: '$4.99',
-    period: '/year',
-    features: [
-      'All features',
-      'Save 60%',
-      'Best value',
-    ],
-  },
-  {
-    id: 'lifetime',
-    name: 'Lifetime',
-    price: '$9.99',
-    period: 'once',
-    features: [
-      'All features forever',
-      'No subscription',
-      'Future updates included',
+      'Priority support',
     ],
   },
 ];
+
+// Play a satisfying "sent" sound effect using Web Audio API
+const playSentSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    // Create a pleasant "whoosh" + "ding" sound
+    const now = audioContext.currentTime;
+
+    // Whoosh sound (white noise with filter sweep)
+    const bufferSize = audioContext.sampleRate * 0.3;
+    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      noiseData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    }
+
+    const noiseSource = audioContext.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const noiseFilter = audioContext.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(1000, now);
+    noiseFilter.frequency.exponentialRampToValueAtTime(4000, now + 0.15);
+    noiseFilter.Q.value = 0.5;
+
+    const noiseGain = audioContext.createGain();
+    noiseGain.gain.setValueAtTime(0.15, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(audioContext.destination);
+    noiseSource.start(now);
+
+    // Success chime (pleasant two-note melody)
+    const playNote = (freq: number, startTime: number, duration: number, volume: number) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(freq, startTime);
+
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration);
+    };
+
+    // Play a pleasant ascending two-note chime
+    playNote(880, now + 0.05, 0.2, 0.2);  // A5
+    playNote(1318.5, now + 0.12, 0.3, 0.15);  // E6
+
+    // Cleanup
+    setTimeout(() => audioContext.close(), 500);
+  } catch (error) {
+    console.log('Sound effect not available:', error);
+  }
+};
 
 // Main App Component
 export default function App() {
@@ -223,10 +266,10 @@ export default function App() {
       if (url) {
         const urlObj = new URL(url);
         const scheme = urlObj.protocol.replace(':', '');
-        
+
         if (scheme === 'mindtoss') {
           const path = urlObj.pathname || urlObj.host;
-          
+
           // Handle toss mode deep links from widget
           if (path === 'toss/text' || url.includes('mindtoss://toss/text')) {
             setCurrentScreen('main');
@@ -282,10 +325,10 @@ export default function App() {
         if (pendingShare) {
           const shareData = JSON.parse(pendingShare);
           localStorage.removeItem('pendingSharedToss'); // Clear after reading
-          
+
           setCurrentScreen('main');
           setInputMode('text');
-          
+
           if (shareData.text) {
             setTextInput(shareData.text);
           }
@@ -310,7 +353,7 @@ export default function App() {
     // Listen for app URL events (deep links)
     if ((window as any).Capacitor) {
       CapacitorApp.addListener('appUrlOpen', handleAppUrl);
-      
+
       // Also check when app becomes active (in case share was pending)
       CapacitorApp.addListener('appStateChange', ({ isActive }) => {
         if (isActive) {
@@ -809,6 +852,9 @@ export default function App() {
         localStorage.setItem('dailyTossCount', newCount.toString());
         localStorage.setItem('lastTossDate', new Date().toDateString());
       }
+
+      // Play sent sound effect
+      playSentSound();
 
       // Show success feedback
       const remaining = isSubscribed ? '' : ` (${3 - dailyTossCount - 1} free tosses left today)`;
@@ -2035,11 +2081,11 @@ export default function App() {
 
               <p style={styles.recordingText}>
                 {isRecording ? formatDuration(recordingDuration) :
-                 recordingDuration > 0 ? `Ready (${formatDuration(recordingDuration)})` : 'Tap to record'}
+                  recordingDuration > 0 ? `Ready (${formatDuration(recordingDuration)})` : 'Tap to record'}
               </p>
               <p style={styles.recordingHint}>
                 {isRecording ? 'Tap stop when done' :
-                 recordingDuration > 0 ? 'Tap TOSS to send or record again' : 'Tap the microphone to start'}
+                  recordingDuration > 0 ? 'Tap TOSS to send or record again' : 'Tap the microphone to start'}
               </p>
               {recordingDuration > 0 && !isRecording && (
                 <button

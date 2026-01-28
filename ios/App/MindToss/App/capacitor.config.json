@@ -6,6 +6,9 @@
 		"path": "ios/App",
 		"scheme": "mindtoss"
 	},
+	"plugins": {
+		"App": {}
+	},
 	"packageClassList": [
 		"SignInWithApple",
 		"AppPlugin",

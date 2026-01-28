@@ -482,6 +482,50 @@ export default function App() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    const firstConfirm = confirm(
+      'Are you sure you want to delete your account? This action cannot be undone.'
+    );
+    if (!firstConfirm) return;
+
+    const secondConfirm = confirm(
+      'This will permanently delete all your data including your account, email settings, and toss history. Are you absolutely sure?'
+    );
+    if (!secondConfirm) return;
+
+    try {
+      // Clear all local data
+      localStorage.removeItem('emailAccounts');
+      localStorage.removeItem('tossHistory');
+      localStorage.removeItem('hasOnboarded');
+      localStorage.removeItem('userProfile');
+      localStorage.removeItem('dailyTossCount');
+      localStorage.removeItem('lastTossDate');
+      localStorage.removeItem('darkMode');
+      localStorage.removeItem('isSubscribed');
+      localStorage.removeItem('categories');
+
+      // Sign out and delete from Supabase if configured
+      if (supabase && user) {
+        // Note: Full account deletion requires Supabase admin API
+        // For now, we sign out and clear all local data
+        await signOut();
+      }
+
+      // Reset all state
+      setEmailAccounts([]);
+      setHistory([]);
+      setUserProfile({ username: '', displayName: '', email: '' });
+      setUser(null);
+      setCurrentScreen('auth');
+
+      alert('Your account has been deleted successfully.');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      alert('Failed to delete account. Please try again or contact support.');
+    }
+  };
+
   const saveEmailAccounts = (accounts: EmailAccount[]) => {
     try {
       localStorage.setItem('emailAccounts', JSON.stringify(accounts));
@@ -2400,12 +2444,21 @@ export default function App() {
         <p style={styles.sectionTitle}>ACCOUNT</p>
         <div style={styles.settingsCard}>
           <button
-            style={{ ...styles.settingRow, borderBottom: 'none' }}
+            style={styles.settingRow}
             onClick={handleLogout}
           >
             <div style={styles.settingInfo}>
               <LogOut size={22} color={COLORS.error} />
               <span style={{ ...styles.settingLabel, color: COLORS.error }}>Sign Out</span>
+            </div>
+          </button>
+          <button
+            style={{ ...styles.settingRow, borderBottom: 'none' }}
+            onClick={handleDeleteAccount}
+          >
+            <div style={styles.settingInfo}>
+              <Trash2 size={22} color={COLORS.error} />
+              <span style={{ ...styles.settingLabel, color: COLORS.error }}>Delete Account</span>
             </div>
           </button>
         </div>

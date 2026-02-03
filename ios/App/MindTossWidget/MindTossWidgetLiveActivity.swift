@@ -11,6 +11,7 @@ import SwiftUI
 
 // MARK: - Live Activity Attributes
 
+@available(iOS 16.1, *)
 struct MindTossWidgetAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         // Dynamic state
@@ -27,6 +28,7 @@ struct MindTossWidgetAttributes: ActivityAttributes {
 
 // MARK: - Live Activity Widget
 
+@available(iOS 16.1, *)
 struct MindTossWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: MindTossWidgetAttributes.self) { context in
@@ -81,6 +83,7 @@ struct MindTossWidgetLiveActivity: Widget {
 
 // MARK: - Lock Screen View
 
+@available(iOS 16.1, *)
 struct LockScreenLiveActivityView: View {
     let context: ActivityViewContext<MindTossWidgetAttributes>
     
@@ -141,6 +144,7 @@ struct LockScreenLiveActivityView: View {
     }
 }
 
+@available(iOS 16.1, *)
 #Preview("Notification", as: .content, using: MindTossWidgetAttributes(tossId: "123", startTime: .now)) {
     MindTossWidgetLiveActivity()
 } contentStates: {

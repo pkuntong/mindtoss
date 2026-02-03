@@ -12,7 +12,13 @@ import SwiftUI
 struct MindTossWidgetBundle: WidgetBundle {
     var body: some Widget {
         MindTossWidget()
-        MindTossWidgetControl()
-        MindTossWidgetLiveActivity()
+        
+        if #available(iOS 18.0, *) {
+            MindTossWidgetControl()
+        }
+        
+        if #available(iOS 16.1, *) {
+            MindTossWidgetLiveActivity()
+        }
     }
 }

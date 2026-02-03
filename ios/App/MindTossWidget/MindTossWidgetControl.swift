@@ -11,6 +11,7 @@ import WidgetKit
 
 // MARK: - Control Center Widget
 
+@available(iOS 18.0, *)
 struct MindTossWidgetControl: ControlWidget {
     static let kind: String = "com.mindtoss.app.MindTossWidgetControl"
 
@@ -27,6 +28,7 @@ struct MindTossWidgetControl: ControlWidget {
 
 // MARK: - Control Intent
 
+@available(iOS 18.0, *)
 struct OpenMindTossIntent: ControlConfigurationIntent {
     static let title: LocalizedStringResource = "Open MindToss"
     static let description: IntentDescription = "Opens MindToss app"

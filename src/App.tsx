@@ -14,7 +14,6 @@ import {
   Trash2,
   PlusCircle,
   Moon,
-  Star,
   Info,
   HelpCircle,
   Shield,
@@ -70,14 +69,6 @@ interface EmailAccount {
   isDefault: boolean;
 }
 
-interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: string;
-  period: string;
-  features: string[];
-}
-
 interface UserProfile {
   username: string;
   displayName: string;
@@ -102,23 +93,6 @@ const COLORS = {
   border: '#DFE6E9',
   borderDark: '#404040',
 };
-
-const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
-  {
-    id: 'monthly',
-    name: 'Premium',
-    price: '$2.99',
-    period: '/month',
-    features: [
-      'Unlimited tosses',
-      'Voice memos',
-      'Photo capture',
-      'Multiple email accounts',
-      'Dark mode',
-      'Priority support',
-    ],
-  },
-];
 
 // Play a satisfying "sent" sound effect using Web Audio API
 const playSentSound = () => {
@@ -191,7 +165,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // State
-  const [currentScreen, setCurrentScreen] = useState<'auth' | 'onboarding' | 'main' | 'settings' | 'history' | 'subscription' | 'profile'>('auth');
+  const [currentScreen, setCurrentScreen] = useState<'auth' | 'onboarding' | 'main' | 'settings' | 'history' | 'profile'>('auth');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [inputMode, setInputMode] = useState<'text' | 'voice' | 'photo'>('text');
   const [textInput, setTextInput] = useState('');
@@ -202,13 +176,11 @@ export default function App() {
   const [emailAccounts, setEmailAccounts] = useState<EmailAccount[]>([]);
   const [selectedEmailIndex, setSelectedEmailIndex] = useState(0);
   const [history, setHistory] = useState<TossItem[]>([]);
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [dailyTossCount, setDailyTossCount] = useState(0);
-  const [lastTossDate, setLastTossDate] = useState('');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newAlias, setNewAlias] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [sendButtonScale, setSendButtonScale] = useState(1);
   const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -310,6 +282,30 @@ export default function App() {
           if (!error && data.session) {
             setUser(data.session.user);
             const hasOnboarded = localStorage.getItem('hasOnboarded');
+
+            // If user signed in with Apple and has email, auto-setup email account
+            // This avoids asking users for information already provided by Sign in with Apple
+            if (data.session.user.email && hasOnboarded !== 'true') {
+              const savedEmails = localStorage.getItem('emailAccounts');
+              if (!savedEmails || JSON.parse(savedEmails).length === 0) {
+                // Auto-create email account from Sign in with Apple
+                const autoAccount: EmailAccount = {
+                  id: Date.now().toString(),
+                  email: data.session.user.email,
+                  alias: data.session.user.email.split('@')[0],
+                  isDefault: true,
+                };
+                localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
+                localStorage.setItem('hasOnboarded', 'true');
+                setEmailAccounts([autoAccount]);
+                setCurrentScreen('main');
+                return;
+              }
+            }
+
+            if (data.session.user.email) {
+              setNewEmail(data.session.user.email);
+            }
             setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
           }
         }
@@ -367,6 +363,31 @@ export default function App() {
       setUser(session?.user ?? null);
       if (session?.user) {
         const hasOnboarded = localStorage.getItem('hasOnboarded');
+
+        // If user signed in with Apple and has email, auto-setup email account
+        // This avoids asking users for information already provided by Sign in with Apple
+        if (session.user.email && hasOnboarded !== 'true') {
+          const savedEmails = localStorage.getItem('emailAccounts');
+          if (!savedEmails || JSON.parse(savedEmails).length === 0) {
+            // Auto-create email account from Sign in with Apple
+            const autoAccount: EmailAccount = {
+              id: Date.now().toString(),
+              email: session.user.email,
+              alias: session.user.email.split('@')[0],
+              isDefault: true,
+            };
+            localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
+            localStorage.setItem('hasOnboarded', 'true');
+            setEmailAccounts([autoAccount]);
+            setCurrentScreen('main');
+            setAuthLoading(false);
+            return;
+          }
+        }
+
+        if (session.user.email) {
+          setNewEmail(session.user.email);
+        }
         setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
       } else {
         setCurrentScreen('auth');
@@ -379,6 +400,30 @@ export default function App() {
       setUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         const hasOnboarded = localStorage.getItem('hasOnboarded');
+
+        // If user signed in with Apple and has email, auto-setup email account
+        // This avoids asking users for information already provided by Sign in with Apple
+        if (session.user.email && hasOnboarded !== 'true') {
+          const savedEmails = localStorage.getItem('emailAccounts');
+          if (!savedEmails || JSON.parse(savedEmails).length === 0) {
+            // Auto-create email account from Sign in with Apple
+            const autoAccount: EmailAccount = {
+              id: Date.now().toString(),
+              email: session.user.email,
+              alias: session.user.email.split('@')[0],
+              isDefault: true,
+            };
+            localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
+            localStorage.setItem('hasOnboarded', 'true');
+            setEmailAccounts([autoAccount]);
+            setCurrentScreen('main');
+            return;
+          }
+        }
+
+        if (session.user.email) {
+          setNewEmail(session.user.email);
+        }
         setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
       } else if (event === 'SIGNED_OUT') {
         setCurrentScreen('auth');
@@ -402,7 +447,34 @@ export default function App() {
     }
   }, [user]);
 
-  // Initialize profile email when email accounts are loaded
+  // Initialize profile with data from Sign in with Apple or other authentication providers
+  useEffect(() => {
+    if (user && !userProfile.email) {
+      // Get name from Sign in with Apple user metadata
+      const userMetadata = user.user_metadata || {};
+      const fullName = userMetadata.full_name || userMetadata.name || '';
+      const givenName = userMetadata.given_name || '';
+
+      // Use email from authenticated session
+      const authEmail = user.email || '';
+
+      let displayName = fullName || givenName || authEmail.split('@')[0] || 'User';
+      let username = authEmail.split('@')[0] || 'user';
+
+      const updatedProfile = {
+        ...userProfile,
+        email: authEmail,
+        username: userProfile.username || username,
+        displayName: userProfile.displayName || displayName,
+      };
+      setUserProfile(updatedProfile);
+      setEditUsername(updatedProfile.username);
+      setEditDisplayName(updatedProfile.displayName);
+      saveUserProfile(updatedProfile);
+    }
+  }, [user]);
+
+  // Also update profile email when email accounts are loaded (for backwards compatibility)
   useEffect(() => {
     if (emailAccounts.length > 0 && !userProfile.email) {
       const defaultEmail = emailAccounts[0].email;
@@ -436,27 +508,13 @@ export default function App() {
       const savedEmails = localStorage.getItem('emailAccounts');
       const savedHistory = localStorage.getItem('tossHistory');
       const savedDarkMode = localStorage.getItem('darkMode');
-      const savedSubscription = localStorage.getItem('isSubscribed');
       const savedProfile = localStorage.getItem('userProfile');
-      const savedTossCount = localStorage.getItem('dailyTossCount');
-      const savedTossDate = localStorage.getItem('lastTossDate');
       const savedCategories = localStorage.getItem('categories');
 
       if (savedEmails) setEmailAccounts(JSON.parse(savedEmails));
       if (savedHistory) setHistory(JSON.parse(savedHistory));
       if (savedDarkMode) setIsDarkMode(JSON.parse(savedDarkMode));
-      if (savedSubscription) setIsSubscribed(JSON.parse(savedSubscription));
       if (savedCategories) setCategories(JSON.parse(savedCategories));
-
-      // Load daily toss tracking (reset if new day)
-      const today = new Date().toDateString();
-      if (savedTossDate === today && savedTossCount) {
-        setDailyTossCount(parseInt(savedTossCount, 10));
-        setLastTossDate(savedTossDate);
-      } else {
-        setDailyTossCount(0);
-        setLastTossDate(today);
-      }
       if (savedProfile) {
         const profile = JSON.parse(savedProfile);
         setUserProfile(profile);
@@ -493,7 +551,23 @@ export default function App() {
     );
     if (!secondConfirm) return;
 
+    setIsDeletingAccount(true);
     try {
+      // Attempt server-side account deletion (Supabase Edge Function)
+      if (supabase && user) {
+        const { error: deleteError } = await supabase.functions.invoke('delete-account', {
+          method: 'POST',
+        });
+
+        if (deleteError) {
+          console.error('Supabase delete-account error:', deleteError);
+          throw new Error(deleteError.message || 'Account deletion failed. Please try again.');
+        }
+
+        // Explicitly sign out to clear session tokens on device
+        await signOut();
+      }
+
       // Clear all local data
       localStorage.removeItem('emailAccounts');
       localStorage.removeItem('tossHistory');
@@ -523,6 +597,8 @@ export default function App() {
     } catch (error: any) {
       console.error('Error deleting account:', error);
       alert('Failed to delete account. Please try again or contact support.');
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -702,14 +778,38 @@ export default function App() {
         return;
       }
 
-      const photo = await CapacitorCamera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Photos,
-      });
-      if (photo.dataUrl) {
-        setCapturedImage(photo.dataUrl);
+      // Try using pickImages first (more reliable for library)
+      try {
+        const result = await CapacitorCamera.pickImages({
+          quality: 90,
+          limit: 1,
+        });
+        if (result.photos && result.photos.length > 0) {
+          const photo = result.photos[0];
+          // Convert webPath to data URL
+          if (photo.webPath) {
+            const response = await fetch(photo.webPath);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setCapturedImage(reader.result as string);
+            };
+            reader.readAsDataURL(blob);
+            return;
+          }
+        }
+      } catch (pickError: any) {
+        console.log('pickImages failed, trying getPhoto:', pickError.message);
+        // Fall back to getPhoto
+        const photo = await CapacitorCamera.getPhoto({
+          quality: 90,
+          allowEditing: false,
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Photos,
+        });
+        if (photo.dataUrl) {
+          setCapturedImage(photo.dataUrl);
+        }
       }
     } catch (error: any) {
       console.error('Photo picker error:', error);
@@ -723,31 +823,6 @@ export default function App() {
   };
 
   const sendToss = async () => {
-    // Free tier limit: 3 tosses per day
-    const FREE_DAILY_LIMIT = 3;
-    const today = new Date().toDateString();
-
-    if (!isSubscribed) {
-      let currentCount = dailyTossCount;
-      let currentDate = lastTossDate;
-
-      // Reset count if it's a new day
-      if (currentDate !== today) {
-        currentCount = 0;
-        currentDate = today;
-        setLastTossDate(today);
-        setDailyTossCount(0);
-        localStorage.setItem('lastTossDate', today);
-        localStorage.setItem('dailyTossCount', '0');
-      }
-
-      if (currentCount >= FREE_DAILY_LIMIT) {
-        setCurrentScreen('subscription');
-        alert(`Free Limit Reached: You've used ${FREE_DAILY_LIMIT} tosses today. Upgrade to Premium for unlimited tosses!`);
-        return;
-      }
-    }
-
     if (emailAccounts.length === 0) {
       alert('No Email: Please add an email address in settings first.');
       return;
@@ -889,20 +964,11 @@ export default function App() {
       setRecordingDuration(0);
       setPendingCategory('');
 
-      // Update daily toss count for free users
-      if (!isSubscribed) {
-        const newCount = dailyTossCount + 1;
-        setDailyTossCount(newCount);
-        localStorage.setItem('dailyTossCount', newCount.toString());
-        localStorage.setItem('lastTossDate', new Date().toDateString());
-      }
-
       // Play sent sound effect
       playSentSound();
 
       // Show success feedback
-      const remaining = isSubscribed ? '' : ` (${3 - dailyTossCount - 1} free tosses left today)`;
-      alert(`Sent! Your thought has been tossed to your inbox.${remaining}`);
+      alert('Sent! Your thought has been tossed to your inbox.');
 
     } catch (error: any) {
       console.error('Send error:', error);
@@ -1894,11 +1960,13 @@ export default function App() {
         icon: Mail,
       },
       {
-        title: 'Add Your Email',
+        title: 'Confirm Your Email',
         subtitle: 'One-time setup',
-        description: 'Enter the email address where you want to receive your tosses.',
+        description: user?.email
+          ? 'We detected your email from Sign in with Apple. We will use it to send your tosses unless you choose a different one.'
+          : 'Enter the email address where you want to receive your tosses.',
         icon: Settings,
-        showEmailInput: true,
+        showEmailInput: !user?.email,
       },
     ];
 
@@ -1964,11 +2032,12 @@ export default function App() {
             style={styles.onboardingNextBtn}
             onClick={() => {
               if (onboardingStep === steps.length - 1) {
-                if (newEmail.includes('@')) {
+                const emailToUse = (newEmail.trim() || user?.email || '').trim();
+                if (emailToUse.includes('@')) {
                   const newAccount: EmailAccount = {
                     id: Date.now().toString(),
-                    email: newEmail.trim(),
-                    alias: newEmail.split('@')[0],
+                    email: emailToUse,
+                    alias: emailToUse.split('@')[0],
                     isDefault: true,
                   };
                   setEmailAccounts([newAccount]);
@@ -2183,7 +2252,6 @@ export default function App() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 style={{ display: 'none' }}
                 onChange={handleImageSelect}
               />
@@ -2378,23 +2446,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Subscription Section */}
-        <p style={styles.sectionTitle}>SUBSCRIPTION</p>
-        <div style={styles.settingsCard}>
-          <button
-            style={styles.settingRow}
-            onClick={() => setCurrentScreen('subscription')}
-          >
-            <div style={styles.settingInfo}>
-              <Star size={22} color={COLORS.primary} />
-              <span style={styles.settingLabel}>
-                {isSubscribed ? 'Manage Subscription' : 'Subscribe to Premium'}
-              </span>
-            </div>
-            <ChevronRight size={20} color={theme.textLight} />
-          </button>
-        </div>
-
         {/* About Section */}
         <p style={styles.sectionTitle}>ABOUT</p>
         <div style={styles.settingsCard}>
@@ -2453,8 +2504,9 @@ export default function App() {
             </div>
           </button>
           <button
-            style={{ ...styles.settingRow, borderBottom: 'none' }}
+            style={{ ...styles.settingRow, borderBottom: 'none', opacity: isDeletingAccount ? 0.6 : 1 }}
             onClick={handleDeleteAccount}
+            disabled={isDeletingAccount}
           >
             <div style={styles.settingInfo}>
               <Trash2 size={22} color={COLORS.error} />
@@ -2766,83 +2818,6 @@ export default function App() {
     </div>
   );
 
-  // Render Subscription Screen
-  const renderSubscription = () => (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.settingsHeader}>
-        <button style={styles.iconButton} onClick={() => setCurrentScreen('settings')}>
-          <ArrowLeft size={26} color={theme.text} />
-        </button>
-        <span style={styles.settingsTitle}>Premium</span>
-        <div style={{ width: 42 }} />
-      </div>
-
-      <div style={styles.subscriptionContent}>
-        {/* Hero */}
-        <div style={styles.subscriptionHero}>
-          <div style={styles.subscriptionHeroBg}>
-            <Star size={50} color="#FFF" />
-            <h2 style={styles.subscriptionHeroTitle}>MindToss Premium</h2>
-            <p style={styles.subscriptionHeroSubtitle}>
-              Unlock unlimited tosses and premium features
-            </p>
-          </div>
-        </div>
-
-        {/* Plans */}
-        <div style={styles.plansContainer}>
-          {SUBSCRIPTION_PLANS.map((plan) => (
-            <div
-              key={plan.id}
-              style={styles.planCard}
-              onClick={() => {
-                if (confirm(`Subscribe to ${plan.name} for ${plan.price}${plan.period}?`)) {
-                  setIsSubscribed(true);
-                  localStorage.setItem('isSubscribed', 'true');
-                  alert('Welcome to Premium!');
-                  setCurrentScreen('main');
-                }
-              }}
-            >
-              {plan.id === 'yearly' && (
-                <div style={styles.saveBadge}>
-                  <span style={styles.saveBadgeText}>BEST VALUE</span>
-                </div>
-              )}
-
-              <p style={styles.planName}>{plan.name}</p>
-              <div style={styles.planPriceRow}>
-                <span style={styles.planPrice}>{plan.price}</span>
-                <span style={styles.planPeriod}>{plan.period}</span>
-              </div>
-
-              <div style={styles.planFeatures}>
-                {plan.features.map((feature, index) => (
-                  <div key={index} style={styles.planFeatureRow}>
-                    <Check size={18} color={COLORS.success} />
-                    <span style={styles.planFeatureText}>{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Restore */}
-        <button style={styles.restoreBtn}>
-          <span style={styles.restoreText}>Restore Purchases</span>
-        </button>
-
-        {/* Terms */}
-        <p style={styles.termsText}>
-          Subscriptions will automatically renew unless cancelled at least 24 hours before the end of the current period.
-          Payment will be charged to your account.
-        </p>
-      </div>
-    </div>
-  );
-
   // Loading state
   if (authLoading) {
     return (
@@ -2881,8 +2856,6 @@ export default function App() {
       return renderSettings();
     case 'history':
       return renderHistory();
-    case 'subscription':
-      return renderSubscription();
     case 'profile':
       return renderProfile();
     default:

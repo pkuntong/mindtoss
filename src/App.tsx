@@ -882,64 +882,57 @@ export default function App() {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      let emailSent = false;
-
-      // Try to send via Supabase Edge Function
-      if (supabaseUrl && supabaseKey) {
-        try {
-          console.log('Sending email via Edge Function:', `${supabaseUrl}/functions/v1/send-email`);
-
-          const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({
-              to: targetEmail,
-              subject: `MindToss: ${new Date().toLocaleDateString()}`,
-              content: content,
-              type: inputMode,
-              attachment: attachment,
-            }),
-          });
-
-          console.log('Edge Function response status:', response.status);
-
-          let result;
-          try {
-            result = await response.json();
-          } catch (e) {
-            console.error('Failed to parse response:', e);
-            throw new Error('Invalid response from email service');
-          }
-
-          console.log('Edge Function result:', result);
-
-          if (response.ok) {
-            emailSent = true;
-          } else {
-            console.warn('Edge Function failed:', result.error || result.message);
-            throw new Error(result.error || result.message || 'Edge Function failed');
-          }
-        } catch (edgeError: any) {
-          console.warn('Edge Function error, falling back to mailto:', edgeError.message);
-          // Fall back to mailto
-          const subject = encodeURIComponent(`MindToss: ${new Date().toLocaleDateString()}`);
-          const body = encodeURIComponent(content);
-          window.open(`mailto:${targetEmail}?subject=${subject}&body=${body}`, '_blank');
-          emailSent = true;
-        }
-      } else {
-        console.warn('Supabase not configured, using mailto');
-        const subject = encodeURIComponent(`MindToss: ${new Date().toLocaleDateString()}`);
-        const body = encodeURIComponent(content);
-        window.open(`mailto:${targetEmail}?subject=${subject}&body=${body}`, '_blank');
-        emailSent = true;
+      // Validate email service is configured
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Email service is not configured. Please contact support.');
       }
 
-      if (!emailSent) {
-        throw new Error('Failed to send email');
+      console.log('Sending email via Edge Function:', `${supabaseUrl}/functions/v1/send-email`);
+
+      let response: Response;
+      try {
+        response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({
+            to: targetEmail,
+            subject: `MindToss: ${new Date().toLocaleDateString()}`,
+            content: content,
+            type: inputMode,
+            attachment: attachment,
+          }),
+        });
+      } catch (networkError: any) {
+        console.error('Network error:', networkError);
+        throw new Error('Unable to connect to email service. Please check your internet connection and try again.');
+      }
+
+      console.log('Edge Function response status:', response.status);
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        console.error('Failed to parse response:', e);
+        throw new Error('Email service returned an invalid response. Please try again.');
+      }
+
+      console.log('Edge Function result:', result);
+
+      if (!response.ok) {
+        console.error('Edge Function failed:', result.error || result.message);
+        // Provide user-friendly error messages based on the error type
+        const errorMessage = result.error || result.message || '';
+        if (errorMessage.includes('SMTP2GO_API_KEY')) {
+          throw new Error('Email service configuration error. Please contact support.');
+        } else if (errorMessage.includes('Missing required fields')) {
+          throw new Error('Invalid email address. Please check your settings.');
+        } else {
+          throw new Error('Failed to send email. Please try again later.');
+        }
       }
 
       // Add to history

@@ -93,7 +93,11 @@ export const signIn = mutation({
       .withIndex("by_email", (q) => q.eq("email", email))
       .unique();
 
-    if (!user || !user.passwordHash || user.passwordHash !== args.passwordHash) {
+    if (!user) {
+      throw new Error("No account found in Convex. Please tap Sign Up once to create your account.");
+    }
+
+    if (!user.passwordHash || user.passwordHash !== args.passwordHash) {
       throw new Error("Invalid email or password.");
     }
 

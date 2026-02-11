@@ -232,6 +232,16 @@ export const signInWithEmail = async (email: string, password: string) => {
   });
 
   if (error || !data) {
+    const message = error?.message || 'Invalid email or password.';
+    if (message.toLowerCase().includes('invalid email or password')) {
+      return {
+        data: null,
+        error: {
+          message:
+            'Invalid email or password. If this account was from Supabase, tap Sign Up once to create it in Convex.',
+        },
+      };
+    }
     return { data: null, error: error || { message: 'Invalid email or password.' } };
   }
 

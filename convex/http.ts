@@ -35,8 +35,11 @@ const withErrorHandling = (handler: (ctx: any, req: Request) => Promise<Response
       return await handler(ctx, req);
     } catch (error: any) {
       console.error("HTTP route error:", error);
+      const rawMessage = String(error?.message || "Request failed.");
+      const firstLine = rawMessage.split("\n")[0];
+      const message = firstLine.replace(/^Uncaught Error:\s*/, "");
       return json(400, {
-        error: error?.message || "Request failed.",
+        error: message || "Request failed.",
       });
     }
   });
@@ -89,11 +92,15 @@ http.route({
   method: "POST",
   handler: withErrorHandling(async (ctx, req) => {
     const body = await req.json();
+    const email = typeof body.email === "string" ? body.email : undefined;
+    const givenName = typeof body.givenName === "string" ? body.givenName : undefined;
+    const familyName = typeof body.familyName === "string" ? body.familyName : undefined;
+
     const result = await ctx.runMutation(api.users.signInWithApple, {
       appleUserId: body.appleUserId,
-      email: body.email,
-      givenName: body.givenName,
-      familyName: body.familyName,
+      email,
+      givenName,
+      familyName,
     });
     return json(200, result);
   }),

@@ -70,6 +70,9 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'reminders', name: 'Reminders', color: '#FDCB6E', icon: 'bell' },
 ];
 
+const isGeneratedAppleEmail = (email?: string | null) =>
+  !!email && email.toLowerCase().endsWith('@mindtoss.local');
+
 interface EmailAccount {
   id: string;
   email: string;
@@ -82,6 +85,25 @@ interface UserProfile {
   displayName: string;
   email: string;
 }
+
+const sanitizeGeneratedAppleProfile = (profile: UserProfile): UserProfile => {
+  if (!isGeneratedAppleEmail(profile.email)) {
+    return profile;
+  }
+
+  return {
+    ...profile,
+    email: '',
+    username:
+      !profile.username || profile.username.toLowerCase().startsWith('apple-')
+        ? 'apple-user'
+        : profile.username,
+    displayName:
+      !profile.displayName || profile.displayName.toLowerCase().startsWith('apple-')
+        ? 'Apple User'
+        : profile.displayName,
+  };
+};
 
 // Constants
 const COLORS = {
@@ -290,17 +312,19 @@ export default function App() {
           if (!error && data.session) {
             setUser(data.session.user);
             const hasOnboarded = localStorage.getItem('hasOnboarded');
+            const sessionEmail = data.session.user.email;
+            const canAutoUseSessionEmail = !!sessionEmail && !isGeneratedAppleEmail(sessionEmail);
 
             // If user signed in with Apple and has email, auto-setup email account
             // This avoids asking users for information already provided by Sign in with Apple
-            if (data.session.user.email && hasOnboarded !== 'true') {
+            if (canAutoUseSessionEmail && hasOnboarded !== 'true') {
               const savedEmails = localStorage.getItem('emailAccounts');
               if (!savedEmails || JSON.parse(savedEmails).length === 0) {
                 // Auto-create email account from Sign in with Apple
                 const autoAccount: EmailAccount = {
                   id: Date.now().toString(),
-                  email: data.session.user.email,
-                  alias: data.session.user.email.split('@')[0],
+                  email: sessionEmail,
+                  alias: sessionEmail.split('@')[0],
                   isDefault: true,
                 };
                 localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
@@ -311,8 +335,8 @@ export default function App() {
               }
             }
 
-            if (data.session.user.email) {
-              setNewEmail(data.session.user.email);
+            if (canAutoUseSessionEmail) {
+              setNewEmail(sessionEmail);
             }
             setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
           }
@@ -371,17 +395,19 @@ export default function App() {
       setUser(session?.user ?? null);
       if (session?.user) {
         const hasOnboarded = localStorage.getItem('hasOnboarded');
+        const sessionEmail = session.user.email;
+        const canAutoUseSessionEmail = !!sessionEmail && !isGeneratedAppleEmail(sessionEmail);
 
         // If user signed in with Apple and has email, auto-setup email account
         // This avoids asking users for information already provided by Sign in with Apple
-        if (session.user.email && hasOnboarded !== 'true') {
+        if (canAutoUseSessionEmail && hasOnboarded !== 'true') {
           const savedEmails = localStorage.getItem('emailAccounts');
           if (!savedEmails || JSON.parse(savedEmails).length === 0) {
             // Auto-create email account from Sign in with Apple
             const autoAccount: EmailAccount = {
               id: Date.now().toString(),
-              email: session.user.email,
-              alias: session.user.email.split('@')[0],
+              email: sessionEmail,
+              alias: sessionEmail.split('@')[0],
               isDefault: true,
             };
             localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
@@ -393,8 +419,8 @@ export default function App() {
           }
         }
 
-        if (session.user.email) {
-          setNewEmail(session.user.email);
+        if (canAutoUseSessionEmail) {
+          setNewEmail(sessionEmail);
         }
         setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
       } else {
@@ -408,17 +434,19 @@ export default function App() {
       setUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         const hasOnboarded = localStorage.getItem('hasOnboarded');
+        const sessionEmail = session.user.email;
+        const canAutoUseSessionEmail = !!sessionEmail && !isGeneratedAppleEmail(sessionEmail);
 
         // If user signed in with Apple and has email, auto-setup email account
         // This avoids asking users for information already provided by Sign in with Apple
-        if (session.user.email && hasOnboarded !== 'true') {
+        if (canAutoUseSessionEmail && hasOnboarded !== 'true') {
           const savedEmails = localStorage.getItem('emailAccounts');
           if (!savedEmails || JSON.parse(savedEmails).length === 0) {
             // Auto-create email account from Sign in with Apple
             const autoAccount: EmailAccount = {
               id: Date.now().toString(),
-              email: session.user.email,
-              alias: session.user.email.split('@')[0],
+              email: sessionEmail,
+              alias: sessionEmail.split('@')[0],
               isDefault: true,
             };
             localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
@@ -429,8 +457,8 @@ export default function App() {
           }
         }
 
-        if (session.user.email) {
-          setNewEmail(session.user.email);
+        if (canAutoUseSessionEmail) {
+          setNewEmail(sessionEmail);
         }
         setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
       } else if (event === 'SIGNED_OUT') {
@@ -457,23 +485,30 @@ export default function App() {
 
   // Initialize profile with data from Sign in with Apple or other authentication providers
   useEffect(() => {
-    if (user && !userProfile.email) {
+    if (user && (!userProfile.email || isGeneratedAppleEmail(userProfile.email))) {
       // Get name from Sign in with Apple user metadata
       const userMetadata = (user.user_metadata || {}) as Record<string, string | undefined>;
       const fullName = userMetadata.full_name || userMetadata.name || '';
       const givenName = userMetadata.given_name || '';
 
       // Use email from authenticated session
-      const authEmail = user.email || '';
+      const authEmailRaw = user.email || '';
+      const authEmail = isGeneratedAppleEmail(authEmailRaw) ? '' : authEmailRaw;
+      const emailNamePart = authEmail ? authEmail.split('@')[0] : '';
 
-      const displayName = fullName || givenName || authEmail.split('@')[0] || 'User';
-      const username = authEmail.split('@')[0] || 'user';
+      const displayName = fullName || givenName || emailNamePart || 'Apple User';
+      const username = emailNamePart || 'apple-user';
+      const hasGeneratedDisplayName =
+        !!userProfile.displayName && userProfile.displayName.toLowerCase().startsWith('apple-');
+      const hasGeneratedUsername =
+        !!userProfile.username && userProfile.username.toLowerCase().startsWith('apple-');
+      const existingEmail = isGeneratedAppleEmail(userProfile.email) ? '' : userProfile.email;
 
       const updatedProfile: UserProfile = {
         ...userProfile,
-        email: authEmail,
-        username: userProfile.username || username,
-        displayName: userProfile.displayName || displayName,
+        email: existingEmail || authEmail,
+        username: !userProfile.username || hasGeneratedUsername ? username : userProfile.username,
+        displayName: !userProfile.displayName || hasGeneratedDisplayName ? displayName : userProfile.displayName,
       };
       setUserProfile(updatedProfile);
       setEditUsername(updatedProfile.username);
@@ -524,7 +559,7 @@ export default function App() {
       if (savedDarkMode) setIsDarkMode(JSON.parse(savedDarkMode));
       if (savedCategories) setCategories(JSON.parse(savedCategories));
       if (savedProfile) {
-        const profile = JSON.parse(savedProfile);
+        const profile = sanitizeGeneratedAppleProfile(JSON.parse(savedProfile) as UserProfile);
         setUserProfile(profile);
         setEditUsername(profile.username || '');
         setEditDisplayName(profile.displayName || '');
@@ -538,7 +573,7 @@ export default function App() {
       if (remoteState) {
         const remoteEmails = (remoteState.emailAccounts || []) as EmailAccount[];
         const remoteHistory = (remoteState.history || []) as TossItem[];
-        const remoteProfile = (remoteState.userProfile || {}) as UserProfile;
+        const remoteProfile = sanitizeGeneratedAppleProfile((remoteState.userProfile || {}) as UserProfile);
         const remoteCategories = (remoteState.categories || DEFAULT_CATEGORIES) as Category[];
 
         setEmailAccounts(remoteEmails);
@@ -1949,6 +1984,9 @@ export default function App() {
 
   // Render Onboarding Screen
   const renderOnboarding = () => {
+    const detectedEmail =
+      user?.email && !isGeneratedAppleEmail(user.email) ? user.email : '';
+
     const steps = [
       {
         title: 'Welcome to MindToss',
@@ -1972,11 +2010,11 @@ export default function App() {
       {
         title: 'Confirm Your Email',
         subtitle: 'One-time setup',
-        description: user?.email
+        description: detectedEmail
           ? 'We detected your email from Sign in with Apple. We will use it to send your tosses unless you choose a different one.'
           : 'Enter the email address where you want to receive your tosses.',
         icon: Settings,
-        showEmailInput: !user?.email,
+        showEmailInput: !detectedEmail,
       },
     ];
 
@@ -2042,7 +2080,7 @@ export default function App() {
             style={styles.onboardingNextBtn}
             onClick={() => {
               if (onboardingStep === steps.length - 1) {
-                const emailToUse = (newEmail.trim() || user?.email || '').trim();
+                const emailToUse = (newEmail.trim() || detectedEmail || '').trim();
                 if (emailToUse.includes('@')) {
                   const newAccount: EmailAccount = {
                     id: Date.now().toString(),

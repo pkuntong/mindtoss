@@ -3,6 +3,22 @@ import { mutation, query } from "./_generated/server";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
+const createFallbackAppleEmail = (appleUserId: string) => {
+  // Stable, non-reversible short hash so we don't expose raw Apple user IDs.
+  let hash = 2166136261;
+  for (let i = 0; i < appleUserId.length; i += 1) {
+    hash ^= appleUserId.charCodeAt(i);
+    hash +=
+      (hash << 1) +
+      (hash << 4) +
+      (hash << 7) +
+      (hash << 8) +
+      (hash << 24);
+  }
+  const shortHash = (hash >>> 0).toString(36);
+  return `apple-user-${shortHash}@mindtoss.local`;
+};
+
 const toSafeUser = (user: {
   _id: string;
   email: string;
@@ -152,7 +168,7 @@ export const signInWithApple = mutation({
     };
 
     if (!user) {
-      const fallbackEmail = normalizedEmail || `apple-${args.appleUserId}@mindtoss.local`;
+      const fallbackEmail = normalizedEmail || createFallbackAppleEmail(args.appleUserId);
       const userId = await ctx.db.insert("users", {
         email: fallbackEmail,
         appleUserId: args.appleUserId,

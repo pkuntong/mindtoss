@@ -30,8 +30,16 @@ import {
 } from 'lucide-react';
 import AuthScreen from './components/AuthScreen';
 import { LegalPages } from './components/LegalPages';
-import { supabase, signOut, onAuthStateChange, isSupabaseConfigured } from './lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import {
+  convex,
+  signOut,
+  onAuthStateChange,
+  isConvexConfigured,
+  sendTossEmail,
+  loadRemoteAppState,
+  saveRemoteAppState,
+  type AppUser,
+} from './lib/convex';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
@@ -161,7 +169,7 @@ const playSentSound = () => {
 // Main App Component
 export default function App() {
   // Auth State
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   // State
@@ -214,8 +222,8 @@ export default function App() {
 
   // Auth state listener
   useEffect(() => {
-    // If Supabase is not configured, skip auth and go straight to onboarding/main
-    if (!isSupabaseConfigured()) {
+    // If Convex is not configured, skip auth and go straight to onboarding/main
+    if (!isConvexConfigured()) {
       setAuthLoading(false);
       const hasOnboarded = localStorage.getItem('hasOnboarded');
       setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
@@ -272,9 +280,9 @@ export default function App() {
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
 
-        if (accessToken && supabase) {
+        if (accessToken && convex) {
           // Exchange the tokens for a session
-          const { data, error } = await supabase.auth.setSession({
+          const { data, error } = await convex.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken || '',
           });
@@ -359,7 +367,7 @@ export default function App() {
     }
 
     // Check current session
-    supabase!.auth.getSession().then(({ data: { session } }) => {
+    convex!.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         const hasOnboarded = localStorage.getItem('hasOnboarded');
@@ -443,7 +451,7 @@ export default function App() {
   // Load saved data on mount
   useEffect(() => {
     if (user) {
-      loadSavedData();
+      void loadSavedData();
     }
   }, [user]);
 
@@ -451,17 +459,17 @@ export default function App() {
   useEffect(() => {
     if (user && !userProfile.email) {
       // Get name from Sign in with Apple user metadata
-      const userMetadata = user.user_metadata || {};
+      const userMetadata = (user.user_metadata || {}) as Record<string, string | undefined>;
       const fullName = userMetadata.full_name || userMetadata.name || '';
       const givenName = userMetadata.given_name || '';
 
       // Use email from authenticated session
       const authEmail = user.email || '';
 
-      let displayName = fullName || givenName || authEmail.split('@')[0] || 'User';
-      let username = authEmail.split('@')[0] || 'user';
+      const displayName = fullName || givenName || authEmail.split('@')[0] || 'User';
+      const username = authEmail.split('@')[0] || 'user';
 
-      const updatedProfile = {
+      const updatedProfile: UserProfile = {
         ...userProfile,
         email: authEmail,
         username: userProfile.username || username,
@@ -503,7 +511,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  const loadSavedData = () => {
+  const loadSavedData = async () => {
     try {
       const savedEmails = localStorage.getItem('emailAccounts');
       const savedHistory = localStorage.getItem('tossHistory');
@@ -521,9 +529,59 @@ export default function App() {
         setEditUsername(profile.username || '');
         setEditDisplayName(profile.displayName || '');
       }
+
+      const { data: remoteState, error: remoteError } = await loadRemoteAppState();
+      if (remoteError) {
+        console.error('Error loading remote app state:', remoteError);
+      }
+
+      if (remoteState) {
+        const remoteEmails = (remoteState.emailAccounts || []) as EmailAccount[];
+        const remoteHistory = (remoteState.history || []) as TossItem[];
+        const remoteProfile = (remoteState.userProfile || {}) as UserProfile;
+        const remoteCategories = (remoteState.categories || DEFAULT_CATEGORIES) as Category[];
+
+        setEmailAccounts(remoteEmails);
+        setHistory(remoteHistory);
+        setUserProfile(remoteProfile);
+        setEditUsername(remoteProfile.username || '');
+        setEditDisplayName(remoteProfile.displayName || '');
+        setCategories(remoteCategories);
+        setIsDarkMode(remoteState.darkMode);
+
+        localStorage.setItem('emailAccounts', JSON.stringify(remoteEmails));
+        localStorage.setItem('tossHistory', JSON.stringify(remoteHistory));
+        localStorage.setItem('userProfile', JSON.stringify(remoteProfile));
+        localStorage.setItem('categories', JSON.stringify(remoteCategories));
+        localStorage.setItem('darkMode', JSON.stringify(remoteState.darkMode));
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     }
+  };
+
+  const syncRemoteState = (overrides?: {
+    emailAccounts?: EmailAccount[];
+    history?: TossItem[];
+    userProfile?: UserProfile;
+    categories?: Category[];
+    darkMode?: boolean;
+  }) => {
+    if (!user) {
+      return;
+    }
+
+    void saveRemoteAppState({
+      emailAccounts: overrides?.emailAccounts ?? emailAccounts,
+      history: overrides?.history ?? history,
+      userProfile: overrides?.userProfile ?? userProfile,
+      categories: overrides?.categories ?? categories,
+      darkMode: overrides?.darkMode ?? isDarkMode,
+    }).then(({ error }) => {
+      if (error) {
+        console.error('Error syncing remote app state:', error);
+      }
+    });
   };
 
   const handleLogout = async () => {
@@ -553,14 +611,14 @@ export default function App() {
 
     setIsDeletingAccount(true);
     try {
-      // Attempt server-side account deletion (Supabase Edge Function)
-      if (supabase && user) {
-        const { error: deleteError } = await supabase.functions.invoke('delete-account', {
+      // Attempt server-side account deletion in Convex
+      if (convex && user) {
+        const { error: deleteError } = await convex.functions.invoke('delete-account', {
           method: 'POST',
         });
 
         if (deleteError) {
-          console.error('Supabase delete-account error:', deleteError);
+          console.error('Convex delete-account error:', deleteError);
           throw new Error(deleteError.message || 'Account deletion failed. Please try again.');
         }
 
@@ -578,13 +636,6 @@ export default function App() {
       localStorage.removeItem('darkMode');
       localStorage.removeItem('isSubscribed');
       localStorage.removeItem('categories');
-
-      // Sign out and delete from Supabase if configured
-      if (supabase && user) {
-        // Note: Full account deletion requires Supabase admin API
-        // For now, we sign out and clear all local data
-        await signOut();
-      }
 
       // Reset all state
       setEmailAccounts([]);
@@ -605,6 +656,7 @@ export default function App() {
   const saveEmailAccounts = (accounts: EmailAccount[]) => {
     try {
       localStorage.setItem('emailAccounts', JSON.stringify(accounts));
+      syncRemoteState({ emailAccounts: accounts });
     } catch (error) {
       console.error('Error saving emails:', error);
     }
@@ -613,6 +665,7 @@ export default function App() {
   const saveHistory = (items: TossItem[]) => {
     try {
       localStorage.setItem('tossHistory', JSON.stringify(items));
+      syncRemoteState({ history: items });
     } catch (error) {
       console.error('Error saving history:', error);
     }
@@ -621,6 +674,7 @@ export default function App() {
   const saveUserProfile = (profile: UserProfile) => {
     try {
       localStorage.setItem('userProfile', JSON.stringify(profile));
+      syncRemoteState({ userProfile: profile });
     } catch (error) {
       console.error('Error saving profile:', error);
     }
@@ -879,60 +933,23 @@ export default function App() {
     animateSendButton();
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const { error: sendError } = await sendTossEmail({
+        to: targetEmail,
+        subject: `MindToss: ${new Date().toLocaleDateString()}`,
+        content: content,
+        type: inputMode,
+        attachment: attachment,
+      });
 
-      // Validate email service is configured
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error('Email service is not configured. Please contact support.');
-      }
-
-      console.log('Sending email via Edge Function:', `${supabaseUrl}/functions/v1/send-email`);
-
-      let response: Response;
-      try {
-        response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`,
-          },
-          body: JSON.stringify({
-            to: targetEmail,
-            subject: `MindToss: ${new Date().toLocaleDateString()}`,
-            content: content,
-            type: inputMode,
-            attachment: attachment,
-          }),
-        });
-      } catch (networkError: any) {
-        console.error('Network error:', networkError);
-        throw new Error('Unable to connect to email service. Please check your internet connection and try again.');
-      }
-
-      console.log('Edge Function response status:', response.status);
-
-      let result;
-      try {
-        result = await response.json();
-      } catch (e) {
-        console.error('Failed to parse response:', e);
-        throw new Error('Email service returned an invalid response. Please try again.');
-      }
-
-      console.log('Edge Function result:', result);
-
-      if (!response.ok) {
-        console.error('Edge Function failed:', result.error || result.message);
-        // Provide user-friendly error messages based on the error type
-        const errorMessage = result.error || result.message || '';
+      if (sendError) {
+        const errorMessage = sendError.message || '';
         if (errorMessage.includes('SMTP2GO_API_KEY')) {
           throw new Error('Email service configuration error. Please contact support.');
-        } else if (errorMessage.includes('Missing required fields')) {
-          throw new Error('Invalid email address. Please check your settings.');
-        } else {
-          throw new Error('Failed to send email. Please try again later.');
         }
+        if (errorMessage.includes('Missing required fields')) {
+          throw new Error('Invalid email address. Please check your settings.');
+        }
+        throw new Error(sendError.message || 'Failed to send email. Please try again later.');
       }
 
       // Add to history
@@ -2427,6 +2444,7 @@ export default function App() {
                 const newValue = !isDarkMode;
                 setIsDarkMode(newValue);
                 localStorage.setItem('darkMode', JSON.stringify(newValue));
+                syncRemoteState({ darkMode: newValue });
               }}
             >
               <div

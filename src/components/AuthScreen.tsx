@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import { signInWithEmail, signUpWithEmail, signInWithApple } from '../lib/supabase';
+import { signInWithEmail, signUpWithEmail, signInWithApple } from '../lib/convex';
 
 interface AuthScreenProps {
     onAuthSuccess: () => void;

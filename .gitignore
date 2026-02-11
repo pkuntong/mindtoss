@@ -67,3 +67,6 @@ AuthKey_*.p8
 
 # Node scripts
 generate_*.js
+
+# Convex
+convex/_generated/

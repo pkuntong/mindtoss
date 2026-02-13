@@ -1185,43 +1185,134 @@ export default function App() {
       fontSize: 14,
       color: 'rgba(255,255,255,0.7)',
     },
-    // Header
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingLeft: 20,
-      paddingRight: 20,
-      paddingTop: 12,
-      paddingBottom: 12,
-    },
-    logo: {
-      height: 36,
-      objectFit: 'contain' as const,
-    },
-    // Email Selector
-    emailSelector: {
-      display: 'flex',
-      alignItems: 'center',
-      alignSelf: 'center',
-      paddingLeft: 16,
-      paddingRight: 16,
-      paddingTop: 8,
-      paddingBottom: 8,
-      borderRadius: 20,
-      gap: 8,
-      marginBottom: 16,
-      background: 'transparent',
+    // Top Card
+    topCard: {
+      marginLeft: 20,
+      marginRight: 20,
+      marginTop: 12,
+      marginBottom: 12,
+      padding: 14,
+      borderRadius: 18,
       backgroundColor: theme.card,
+      border: `1px solid ${theme.border}`,
+      boxShadow: isDarkMode ? 'none' : '0 6px 20px rgba(0, 0, 0, 0.06)',
     },
-    emailSelectorText: {
-      fontSize: 14,
+    topCardHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+      gap: 12,
+    },
+    brandBlock: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      minWidth: 0,
+    },
+    brandLogoWrap: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
+      boxShadow: '0 4px 14px rgba(229, 90, 43, 0.35)',
+      flexShrink: 0,
+    },
+    brandLogo: {
+      width: 28,
+      height: 28,
+      objectFit: 'contain' as const,
+      filter: 'brightness(0) invert(1)',
+    },
+    brandTitle: {
+      fontSize: 16,
+      fontWeight: 800,
+      color: theme.text,
+      margin: 0,
+      lineHeight: 1.1,
+    },
+    brandSubtitle: {
+      fontSize: 12,
       fontWeight: 500,
-      maxWidth: 200,
+      color: theme.textLight,
+      margin: 0,
+      marginTop: 4,
       overflow: 'hidden',
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap' as const,
+      maxWidth: 180,
+    },
+    headerActions: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      flexShrink: 0,
+    },
+    headerActionBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: theme.background,
+      border: `1px solid ${theme.border}`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+    },
+    inboxSelector: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      width: '100%',
+      borderRadius: 12,
+      paddingLeft: 12,
+      paddingRight: 10,
+      paddingTop: 10,
+      paddingBottom: 10,
+      backgroundColor: isDarkMode ? '#1f1f1f' : '#FFFFFF',
+      border: `1px solid ${theme.border}`,
+      gap: 12,
+      cursor: 'pointer',
+    },
+    inboxMeta: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      minWidth: 0,
+      textAlign: 'left' as const,
+    },
+    inboxLabel: {
+      fontSize: 11,
+      color: theme.textLight,
+      textTransform: 'uppercase' as const,
+      letterSpacing: 0.8,
+      marginBottom: 4,
+    },
+    inboxAlias: {
+      fontSize: 14,
+      fontWeight: 700,
       color: theme.text,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap' as const,
+      lineHeight: 1.2,
+    },
+    inboxEmail: {
+      fontSize: 12,
+      color: theme.textLight,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap' as const,
+      marginTop: 2,
+    },
+    inboxSwitchHint: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      color: theme.textLight,
+      flexShrink: 0,
     },
     // Mode Tabs
     modeTabs: {
@@ -1395,8 +1486,11 @@ export default function App() {
     // Category Picker
     categoryPickerRow: {
       display: 'flex',
+      width: '100%',
       justifyContent: 'center',
       paddingTop: 12,
+      position: 'relative' as const,
+      zIndex: 20,
     },
     categoryPickerBtn: {
       display: 'flex',
@@ -1413,12 +1507,18 @@ export default function App() {
       fontWeight: 500,
     },
     categoryDropdown: {
-      marginLeft: 20,
-      marginRight: 20,
-      marginTop: 8,
+      position: 'absolute' as const,
+      left: 20,
+      right: 20,
+      top: 'calc(100% + 8px)',
       borderRadius: 12,
       backgroundColor: theme.card,
       overflow: 'hidden',
+      maxHeight: 230,
+      overflowY: 'auto' as const,
+      border: `1px solid ${theme.border}`,
+      boxShadow: isDarkMode ? '0 12px 28px rgba(0,0,0,0.45)' : '0 12px 28px rgba(0,0,0,0.14)',
+      zIndex: 50,
     },
     categoryDropdownItem: {
       display: 'flex',
@@ -2121,44 +2221,71 @@ export default function App() {
   // Render Main Screen
   const renderMainScreen = () => {
     const modePosition = inputMode === 'text' ? 4 : inputMode === 'voice' ? 'calc(33.33% + 1.33px)' : 'calc(66.66% + 2.67px)';
+    const activeEmailAccount = emailAccounts[selectedEmailIndex];
+    const canSwitchAccount = emailAccounts.length > 1;
+    const displayName = userProfile.displayName || userProfile.username || 'Capture Mode';
 
     return (
       <div style={styles.container}>
-        {/* Header */}
-        <div style={styles.header}>
-          <button style={styles.iconButton} onClick={() => setCurrentScreen('settings')}>
-            <Settings size={26} color={theme.text} />
-          </button>
+        {/* Top Card */}
+        <div style={styles.topCard}>
+          <div style={styles.topCardHeader}>
+            <div style={styles.brandBlock}>
+              <div style={styles.brandLogoWrap}>
+                <img src="/assets/favicon.png" style={styles.brandLogo} alt="MindToss" />
+              </div>
+              <div>
+                <p style={styles.brandTitle}>MindToss</p>
+                <p style={styles.brandSubtitle}>{displayName}</p>
+              </div>
+            </div>
 
-          <img
-            src="/assets/logo.png"
-            style={styles.logo}
-            alt="MindToss"
-          />
+            <div style={styles.headerActions}>
+              <button style={styles.headerActionBtn} onClick={() => setCurrentScreen('settings')}>
+                <Settings size={18} color={theme.text} />
+              </button>
+              <button style={styles.headerActionBtn} onClick={() => setCurrentScreen('history')}>
+                <Clock size={18} color={theme.text} />
+              </button>
+            </div>
+          </div>
 
-          <button style={styles.iconButton} onClick={() => setCurrentScreen('history')}>
-            <Clock size={26} color={theme.text} />
-          </button>
+          {activeEmailAccount ? (
+            <button
+              style={styles.inboxSelector}
+              onClick={() => {
+                if (!canSwitchAccount) return;
+                const nextIndex = (selectedEmailIndex + 1) % emailAccounts.length;
+                setSelectedEmailIndex(nextIndex);
+              }}
+            >
+              <div style={styles.inboxMeta}>
+                <span style={styles.inboxLabel}>Sending To</span>
+                <span style={styles.inboxAlias}>{activeEmailAccount.alias || activeEmailAccount.email}</span>
+                <span style={styles.inboxEmail}>{activeEmailAccount.email}</span>
+              </div>
+              <div style={styles.inboxSwitchHint}>
+                <Mail size={14} color={COLORS.primary} />
+                {canSwitchAccount ? (
+                  <ChevronDown size={14} color={theme.textLight} />
+                ) : (
+                  <ChevronRight size={14} color={theme.textLight} />
+                )}
+              </div>
+            </button>
+          ) : (
+            <button style={styles.inboxSelector} onClick={() => setCurrentScreen('settings')}>
+              <div style={styles.inboxMeta}>
+                <span style={styles.inboxLabel}>Sending To</span>
+                <span style={styles.inboxAlias}>No Email Configured</span>
+                <span style={styles.inboxEmail}>Add an inbox in Settings to enable Toss.</span>
+              </div>
+              <div style={styles.inboxSwitchHint}>
+                <ChevronRight size={14} color={theme.textLight} />
+              </div>
+            </button>
+          )}
         </div>
-
-        {/* Email Selector */}
-        {emailAccounts.length > 0 && (
-          <button
-            style={styles.emailSelector}
-            onClick={() => {
-              const nextIndex = (selectedEmailIndex + 1) % emailAccounts.length;
-              setSelectedEmailIndex(nextIndex);
-            }}
-          >
-            <Mail size={18} color={COLORS.primary} />
-            <span style={styles.emailSelectorText}>
-              {emailAccounts[selectedEmailIndex]?.alias || emailAccounts[selectedEmailIndex]?.email}
-            </span>
-            {emailAccounts.length > 1 && (
-              <ChevronDown size={16} color={theme.textLight} />
-            )}
-          </button>
-        )}
 
         {/* Mode Tabs */}
         <div style={styles.modeTabs}>
@@ -2322,30 +2449,30 @@ export default function App() {
             </span>
             <ChevronDown size={14} color={theme.textLight} />
           </button>
-        </div>
 
-        {/* Category Dropdown */}
-        {showCategoryPicker && (
-          <div style={styles.categoryDropdown}>
-            {categories.filter(c => c.id !== 'all').map((cat) => (
-              <button
-                key={cat.id}
-                style={{
-                  ...styles.categoryDropdownItem,
-                  backgroundColor: pendingCategory === cat.id ? `${cat.color}20` : 'transparent',
-                }}
-                onClick={() => {
-                  setPendingCategory(pendingCategory === cat.id ? '' : cat.id);
-                  setShowCategoryPicker(false);
-                }}
-              >
-                <div style={{ ...styles.categoryDot, backgroundColor: cat.color }} />
-                <span style={styles.categoryDropdownText}>{cat.name}</span>
-                {pendingCategory === cat.id && <Check size={16} color={cat.color} />}
-              </button>
-            ))}
-          </div>
-        )}
+          {/* Category Dropdown */}
+          {showCategoryPicker && (
+            <div style={styles.categoryDropdown}>
+              {categories.filter(c => c.id !== 'all').map((cat) => (
+                <button
+                  key={cat.id}
+                  style={{
+                    ...styles.categoryDropdownItem,
+                    backgroundColor: pendingCategory === cat.id ? `${cat.color}20` : 'transparent',
+                  }}
+                  onClick={() => {
+                    setPendingCategory(pendingCategory === cat.id ? '' : cat.id);
+                    setShowCategoryPicker(false);
+                  }}
+                >
+                  <div style={{ ...styles.categoryDot, backgroundColor: cat.color }} />
+                  <span style={styles.categoryDropdownText}>{cat.name}</span>
+                  {pendingCategory === cat.id && <Check size={16} color={cat.color} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Send Button */}
         <div style={styles.sendContainer}>

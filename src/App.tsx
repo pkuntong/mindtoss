@@ -911,14 +911,50 @@ export default function App() {
     }
   };
 
+  const getSendReadiness = () => {
+    const targetEmail = emailAccounts[selectedEmailIndex]?.email?.trim() || '';
+    const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail);
+
+    const hasContent =
+      inputMode === 'text'
+        ? textInput.trim().length > 0
+        : inputMode === 'voice'
+          ? isRecording || recordingDuration > 0
+          : !!capturedImage;
+
+    let reason = '';
+    if (!hasValidEmail) {
+      reason = 'Add an inbox email in Settings first.';
+    } else if (!hasContent) {
+      reason =
+        inputMode === 'text'
+          ? 'Type a note to enable Toss.'
+          : inputMode === 'voice'
+            ? 'Record a voice memo to enable Toss.'
+            : 'Attach a photo to enable Toss.';
+    }
+
+    return {
+      targetEmail,
+      hasValidEmail,
+      hasContent,
+      canSend: hasValidEmail && hasContent,
+      reason,
+    };
+  };
+
   const sendToss = async () => {
-    if (emailAccounts.length === 0) {
-      alert('No Email: Please add an email address in settings first.');
+    const readiness = getSendReadiness();
+
+    if (!readiness.hasValidEmail) {
+      setCurrentScreen('settings');
+      return;
+    }
+    if (!readiness.hasContent) {
       return;
     }
 
-    const targetEmail = emailAccounts[selectedEmailIndex]?.email;
-    if (!targetEmail) return;
+    const targetEmail = readiness.targetEmail;
 
     let content = '';
     let attachment: { filename: string; content: string; contentType: string } | undefined;
@@ -1545,10 +1581,12 @@ export default function App() {
     // Send Button
     sendContainer: {
       display: 'flex',
+      flexDirection: 'column' as const,
       alignItems: 'center',
       justifyContent: 'center',
       paddingTop: 20,
       paddingBottom: 20,
+      gap: 8,
     },
     sendButton: {
       width: 180,
@@ -1571,6 +1609,13 @@ export default function App() {
       fontWeight: 800,
       color: '#FFF',
       letterSpacing: 2,
+    },
+    sendHintText: {
+      margin: 0,
+      fontSize: 12,
+      color: theme.textLight,
+      textAlign: 'center' as const,
+      maxWidth: 260,
     },
     // Recent History
     recentHistory: {
@@ -1939,124 +1984,6 @@ export default function App() {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    // Subscription
-    subscriptionContent: {
-      flex: 1,
-      overflowY: 'auto' as const,
-    },
-    subscriptionHero: {
-      marginLeft: 20,
-      marginRight: 20,
-      borderRadius: 24,
-      overflow: 'hidden',
-      marginTop: 20,
-    },
-    subscriptionHeroBg: {
-      padding: 32,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      alignItems: 'center',
-      background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
-    },
-    subscriptionHeroTitle: {
-      fontSize: 28,
-      fontWeight: 800,
-      color: '#FFF',
-      marginTop: 16,
-    },
-    subscriptionHeroSubtitle: {
-      fontSize: 16,
-      color: 'rgba(255,255,255,0.9)',
-      marginTop: 8,
-      textAlign: 'center' as const,
-    },
-    plansContainer: {
-      padding: 20,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      gap: 16,
-    },
-    planCard: {
-      borderRadius: 20,
-      padding: 24,
-      border: `2px solid ${theme.border}`,
-      position: 'relative' as const,
-      backgroundColor: theme.card,
-      cursor: 'pointer',
-    },
-    saveBadge: {
-      position: 'absolute' as const,
-      top: -10,
-      right: 16,
-      backgroundColor: COLORS.success,
-      paddingLeft: 12,
-      paddingRight: 12,
-      paddingTop: 4,
-      paddingBottom: 4,
-      borderRadius: 12,
-    },
-    saveBadgeText: {
-      fontSize: 11,
-      fontWeight: 700,
-      color: '#FFF',
-    },
-    planName: {
-      fontSize: 20,
-      fontWeight: 700,
-      color: theme.text,
-    },
-    planPriceRow: {
-      display: 'flex',
-      alignItems: 'baseline',
-      marginTop: 8,
-    },
-    planPrice: {
-      fontSize: 36,
-      fontWeight: 800,
-      color: COLORS.primary,
-    },
-    planPeriod: {
-      fontSize: 16,
-      marginLeft: 4,
-      color: theme.textLight,
-    },
-    planFeatures: {
-      marginTop: 20,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      gap: 12,
-    },
-    planFeatureRow: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-    },
-    planFeatureText: {
-      fontSize: 15,
-      color: theme.text,
-    },
-    restoreBtn: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 16,
-      background: 'transparent',
-      width: '100%',
-    },
-    restoreText: {
-      fontSize: 16,
-      fontWeight: 600,
-      color: COLORS.primary,
-    },
-    termsText: {
-      fontSize: 12,
-      textAlign: 'center' as const,
-      paddingLeft: 32,
-      paddingRight: 32,
-      paddingBottom: 32,
-      lineHeight: 1.5,
-      color: theme.textLight,
-    },
     // Toggle Switch
     toggleSwitch: {
       width: 50,
@@ -2224,6 +2151,7 @@ export default function App() {
     const activeEmailAccount = emailAccounts[selectedEmailIndex];
     const canSwitchAccount = emailAccounts.length > 1;
     const displayName = userProfile.displayName || userProfile.username || 'Capture Mode';
+    const sendReadiness = getSendReadiness();
 
     return (
       <div style={styles.container}>
@@ -2480,10 +2408,10 @@ export default function App() {
             style={{
               ...styles.sendButton,
               transform: `scale(${sendButtonScale})`,
-              opacity: isSending ? 0.7 : 1,
+              opacity: isSending || !sendReadiness.canSend ? 0.6 : 1,
             }}
             onClick={sendToss}
-            disabled={isSending}
+            disabled={isSending || !sendReadiness.canSend}
           >
             <div style={styles.sendGradient}>
               {isSending ? (
@@ -2496,6 +2424,9 @@ export default function App() {
               )}
             </div>
           </button>
+          {!isSending && !sendReadiness.canSend && (
+            <p style={styles.sendHintText}>{sendReadiness.reason}</p>
+          )}
         </div>
 
         {/* Recent History Preview */}

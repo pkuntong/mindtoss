@@ -70,8 +70,60 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'reminders', name: 'Reminders', color: '#FDCB6E', icon: 'bell' },
 ];
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const isGeneratedAppleEmail = (email?: string | null) =>
   !!email && email.toLowerCase().endsWith('@mindtoss.local');
+
+const isPrivateRelayEmail = (email?: string | null) =>
+  !!email && email.toLowerCase().endsWith('@privaterelay.appleid.com');
+
+const normalizeEmail = (email?: string | null) => (email || '').trim().toLowerCase();
+
+type DestinationEmailStatus = 'ok' | 'empty' | 'invalid' | 'generated' | 'relay';
+
+const getDestinationEmailStatus = (email?: string | null): DestinationEmailStatus => {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return 'empty';
+  if (isGeneratedAppleEmail(normalizedEmail)) return 'generated';
+  if (isPrivateRelayEmail(normalizedEmail)) return 'relay';
+  if (!EMAIL_REGEX.test(normalizedEmail)) return 'invalid';
+  return 'ok';
+};
+
+const isValidDestinationEmail = (email?: string | null) => getDestinationEmailStatus(email) === 'ok';
+
+const getDestinationEmailInputError = (status: DestinationEmailStatus) => {
+  if (status === 'empty') {
+    return 'Please enter your inbox email address.';
+  }
+  if (status === 'generated') {
+    return 'Please use a real inbox email address.';
+  }
+  if (status === 'relay') {
+    return 'Please use a non-Apple relay inbox email address for reliable delivery.';
+  }
+  return 'Please enter a valid email address.';
+};
+
+const getDestinationEmailReadinessHint = (
+  status: DestinationEmailStatus,
+  hasConfiguredAccounts: boolean,
+) => {
+  if (status === 'ok') {
+    return '';
+  }
+  if (!hasConfiguredAccounts || status === 'empty') {
+    return 'Add an inbox email in Settings first.';
+  }
+  if (status === 'generated') {
+    return 'Replace the generated Apple email with a real inbox in Settings.';
+  }
+  if (status === 'relay') {
+    return 'Use a non-Apple relay inbox email in Settings for reliable delivery.';
+  }
+  return 'Select a valid inbox email in Settings.';
+};
 
 interface EmailAccount {
   id: string;
@@ -103,6 +155,44 @@ const sanitizeGeneratedAppleProfile = (profile: UserProfile): UserProfile => {
         ? 'Apple User'
         : profile.displayName,
   };
+};
+
+const sanitizeEmailAccounts = (accounts: EmailAccount[]) => {
+  const seenEmails = new Set<string>();
+  const sanitized: EmailAccount[] = [];
+
+  for (const account of accounts) {
+    const normalizedEmail = normalizeEmail(account.email);
+    if (!isValidDestinationEmail(normalizedEmail) || seenEmails.has(normalizedEmail)) {
+      continue;
+    }
+
+    seenEmails.add(normalizedEmail);
+    sanitized.push({
+      ...account,
+      email: normalizedEmail,
+      alias: account.alias?.trim() || normalizedEmail.split('@')[0],
+      isDefault: false,
+    });
+  }
+
+  return sanitized.map((account, index) => ({
+    ...account,
+    isDefault: index === 0,
+  }));
+};
+
+const sanitizeCategories = (categories: Category[]) => {
+  const defaultById = new Map(DEFAULT_CATEGORIES.map((category) => [category.id, category]));
+  const incoming = new Map(
+    categories
+      .filter((category) => category && typeof category.id === 'string' && typeof category.name === 'string')
+      .map((category) => [category.id, category]),
+  );
+
+  const defaults = DEFAULT_CATEGORIES.map((defaultCategory) => incoming.get(defaultCategory.id) || defaultCategory);
+  const custom = categories.filter((category) => category && !defaultById.has(category.id));
+  return [...defaults, ...custom];
 };
 
 // Constants
@@ -313,18 +403,19 @@ export default function App() {
             setUser(data.session.user);
             const hasOnboarded = localStorage.getItem('hasOnboarded');
             const sessionEmail = data.session.user.email;
-            const canAutoUseSessionEmail = !!sessionEmail && !isGeneratedAppleEmail(sessionEmail);
+            const canAutoUseSessionEmail = isValidDestinationEmail(sessionEmail);
 
             // If user signed in with Apple and has email, auto-setup email account
             // This avoids asking users for information already provided by Sign in with Apple
             if (canAutoUseSessionEmail && hasOnboarded !== 'true') {
               const savedEmails = localStorage.getItem('emailAccounts');
               if (!savedEmails || JSON.parse(savedEmails).length === 0) {
+                const normalizedSessionEmail = normalizeEmail(sessionEmail);
                 // Auto-create email account from Sign in with Apple
                 const autoAccount: EmailAccount = {
                   id: Date.now().toString(),
-                  email: sessionEmail,
-                  alias: sessionEmail.split('@')[0],
+                  email: normalizedSessionEmail,
+                  alias: normalizedSessionEmail.split('@')[0],
                   isDefault: true,
                 };
                 localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
@@ -336,7 +427,7 @@ export default function App() {
             }
 
             if (canAutoUseSessionEmail) {
-              setNewEmail(sessionEmail);
+              setNewEmail(normalizeEmail(sessionEmail));
             }
             setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
           }
@@ -396,18 +487,19 @@ export default function App() {
       if (session?.user) {
         const hasOnboarded = localStorage.getItem('hasOnboarded');
         const sessionEmail = session.user.email;
-        const canAutoUseSessionEmail = !!sessionEmail && !isGeneratedAppleEmail(sessionEmail);
+        const canAutoUseSessionEmail = isValidDestinationEmail(sessionEmail);
 
         // If user signed in with Apple and has email, auto-setup email account
         // This avoids asking users for information already provided by Sign in with Apple
         if (canAutoUseSessionEmail && hasOnboarded !== 'true') {
           const savedEmails = localStorage.getItem('emailAccounts');
           if (!savedEmails || JSON.parse(savedEmails).length === 0) {
+            const normalizedSessionEmail = normalizeEmail(sessionEmail);
             // Auto-create email account from Sign in with Apple
             const autoAccount: EmailAccount = {
               id: Date.now().toString(),
-              email: sessionEmail,
-              alias: sessionEmail.split('@')[0],
+              email: normalizedSessionEmail,
+              alias: normalizedSessionEmail.split('@')[0],
               isDefault: true,
             };
             localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
@@ -420,7 +512,7 @@ export default function App() {
         }
 
         if (canAutoUseSessionEmail) {
-          setNewEmail(sessionEmail);
+          setNewEmail(normalizeEmail(sessionEmail));
         }
         setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
       } else {
@@ -435,18 +527,19 @@ export default function App() {
       if (event === 'SIGNED_IN' && session?.user) {
         const hasOnboarded = localStorage.getItem('hasOnboarded');
         const sessionEmail = session.user.email;
-        const canAutoUseSessionEmail = !!sessionEmail && !isGeneratedAppleEmail(sessionEmail);
+        const canAutoUseSessionEmail = isValidDestinationEmail(sessionEmail);
 
         // If user signed in with Apple and has email, auto-setup email account
         // This avoids asking users for information already provided by Sign in with Apple
         if (canAutoUseSessionEmail && hasOnboarded !== 'true') {
           const savedEmails = localStorage.getItem('emailAccounts');
           if (!savedEmails || JSON.parse(savedEmails).length === 0) {
+            const normalizedSessionEmail = normalizeEmail(sessionEmail);
             // Auto-create email account from Sign in with Apple
             const autoAccount: EmailAccount = {
               id: Date.now().toString(),
-              email: sessionEmail,
-              alias: sessionEmail.split('@')[0],
+              email: normalizedSessionEmail,
+              alias: normalizedSessionEmail.split('@')[0],
               isDefault: true,
             };
             localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
@@ -458,7 +551,7 @@ export default function App() {
         }
 
         if (canAutoUseSessionEmail) {
-          setNewEmail(sessionEmail);
+          setNewEmail(normalizeEmail(sessionEmail));
         }
         setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
       } else if (event === 'SIGNED_OUT') {
@@ -493,7 +586,7 @@ export default function App() {
 
       // Use email from authenticated session
       const authEmailRaw = user.email || '';
-      const authEmail = isGeneratedAppleEmail(authEmailRaw) ? '' : authEmailRaw;
+      const authEmail = isValidDestinationEmail(authEmailRaw) ? normalizeEmail(authEmailRaw) : '';
       const emailNamePart = authEmail ? authEmail.split('@')[0] : '';
 
       const displayName = fullName || givenName || emailNamePart || 'Apple User';
@@ -534,6 +627,12 @@ export default function App() {
     }
   }, [emailAccounts]);
 
+  useEffect(() => {
+    if (selectedEmailIndex >= emailAccounts.length) {
+      setSelectedEmailIndex(Math.max(0, emailAccounts.length - 1));
+    }
+  }, [emailAccounts, selectedEmailIndex]);
+
   // Recording timer
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -553,11 +652,21 @@ export default function App() {
       const savedDarkMode = localStorage.getItem('darkMode');
       const savedProfile = localStorage.getItem('userProfile');
       const savedCategories = localStorage.getItem('categories');
+      let resolvedEmails: EmailAccount[] = [];
 
-      if (savedEmails) setEmailAccounts(JSON.parse(savedEmails));
+      if (savedEmails) {
+        const localEmails = sanitizeEmailAccounts(JSON.parse(savedEmails) as EmailAccount[]);
+        setEmailAccounts(localEmails);
+        localStorage.setItem('emailAccounts', JSON.stringify(localEmails));
+        resolvedEmails = localEmails;
+      }
       if (savedHistory) setHistory(JSON.parse(savedHistory));
       if (savedDarkMode) setIsDarkMode(JSON.parse(savedDarkMode));
-      if (savedCategories) setCategories(JSON.parse(savedCategories));
+      if (savedCategories) {
+        const localCategories = sanitizeCategories(JSON.parse(savedCategories) as Category[]);
+        setCategories(localCategories);
+        localStorage.setItem('categories', JSON.stringify(localCategories));
+      }
       if (savedProfile) {
         const profile = sanitizeGeneratedAppleProfile(JSON.parse(savedProfile) as UserProfile);
         setUserProfile(profile);
@@ -571,10 +680,10 @@ export default function App() {
       }
 
       if (remoteState) {
-        const remoteEmails = (remoteState.emailAccounts || []) as EmailAccount[];
+        const remoteEmails = sanitizeEmailAccounts((remoteState.emailAccounts || []) as EmailAccount[]);
         const remoteHistory = (remoteState.history || []) as TossItem[];
         const remoteProfile = sanitizeGeneratedAppleProfile((remoteState.userProfile || {}) as UserProfile);
-        const remoteCategories = (remoteState.categories || DEFAULT_CATEGORIES) as Category[];
+        const remoteCategories = sanitizeCategories((remoteState.categories || DEFAULT_CATEGORIES) as Category[]);
 
         setEmailAccounts(remoteEmails);
         setHistory(remoteHistory);
@@ -589,6 +698,12 @@ export default function App() {
         localStorage.setItem('userProfile', JSON.stringify(remoteProfile));
         localStorage.setItem('categories', JSON.stringify(remoteCategories));
         localStorage.setItem('darkMode', JSON.stringify(remoteState.darkMode));
+        resolvedEmails = remoteEmails;
+      }
+
+      if (resolvedEmails.length === 0) {
+        localStorage.removeItem('hasOnboarded');
+        setCurrentScreen('onboarding');
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -690,8 +805,9 @@ export default function App() {
 
   const saveEmailAccounts = (accounts: EmailAccount[]) => {
     try {
-      localStorage.setItem('emailAccounts', JSON.stringify(accounts));
-      syncRemoteState({ emailAccounts: accounts });
+      const sanitizedAccounts = sanitizeEmailAccounts(accounts);
+      localStorage.setItem('emailAccounts', JSON.stringify(sanitizedAccounts));
+      syncRemoteState({ emailAccounts: sanitizedAccounts });
     } catch (error) {
       console.error('Error saving emails:', error);
     }
@@ -912,8 +1028,9 @@ export default function App() {
   };
 
   const getSendReadiness = () => {
-    const targetEmail = emailAccounts[selectedEmailIndex]?.email?.trim() || '';
-    const hasValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail);
+    const targetEmail = normalizeEmail(emailAccounts[selectedEmailIndex]?.email);
+    const emailStatus = getDestinationEmailStatus(targetEmail);
+    const hasValidEmail = emailStatus === 'ok';
 
     const hasContent =
       inputMode === 'text'
@@ -924,7 +1041,7 @@ export default function App() {
 
     let reason = '';
     if (!hasValidEmail) {
-      reason = 'Add an inbox email in Settings first.';
+      reason = getDestinationEmailReadinessHint(emailStatus, emailAccounts.length > 0);
     } else if (!hasContent) {
       reason =
         inputMode === 'text'
@@ -1017,6 +1134,9 @@ export default function App() {
         if (errorMessage.includes('SMTP2GO_API_KEY')) {
           throw new Error('Email service configuration error. Please contact support.');
         }
+        if (errorMessage.toLowerCase().includes('recipient rejected')) {
+          throw new Error('Email delivery failed for this address. Please use a different inbox email.');
+        }
         if (errorMessage.includes('Missing required fields')) {
           throw new Error('Invalid email address. Please check your settings.');
         }
@@ -1060,19 +1180,21 @@ export default function App() {
   };
 
   const addEmailAccount = () => {
-    if (!newEmail.trim() || !newEmail.includes('@')) {
-      alert('Invalid Email: Please enter a valid email address.');
+    const normalizedEmail = normalizeEmail(newEmail);
+    const emailStatus = getDestinationEmailStatus(normalizedEmail);
+    if (emailStatus !== 'ok') {
+      alert(`Invalid Email: ${getDestinationEmailInputError(emailStatus)}`);
       return;
     }
 
     const newAccount: EmailAccount = {
       id: Date.now().toString(),
-      email: newEmail.trim(),
-      alias: newAlias.trim() || newEmail.split('@')[0],
+      email: normalizedEmail,
+      alias: newAlias.trim() || normalizedEmail.split('@')[0],
       isDefault: emailAccounts.length === 0,
     };
 
-    const updated = [...emailAccounts, newAccount];
+    const updated = sanitizeEmailAccounts([...emailAccounts, newAccount]);
     setEmailAccounts(updated);
     saveEmailAccounts(updated);
     setNewEmail('');
@@ -1082,7 +1204,7 @@ export default function App() {
 
   const removeEmailAccount = (id: string) => {
     if (confirm('Are you sure you want to remove this email?')) {
-      const updated = emailAccounts.filter(e => e.id !== id);
+      const updated = sanitizeEmailAccounts(emailAccounts.filter(e => e.id !== id));
       setEmailAccounts(updated);
       saveEmailAccounts(updated);
       if (selectedEmailIndex >= updated.length) {
@@ -2012,7 +2134,7 @@ export default function App() {
   // Render Onboarding Screen
   const renderOnboarding = () => {
     const detectedEmail =
-      user?.email && !isGeneratedAppleEmail(user.email) ? user.email : '';
+      user?.email && isValidDestinationEmail(user.email) ? normalizeEmail(user.email) : '';
 
     const steps = [
       {
@@ -2039,7 +2161,7 @@ export default function App() {
         subtitle: 'One-time setup',
         description: detectedEmail
           ? 'We detected your email from Sign in with Apple. We will use it to send your tosses unless you choose a different one.'
-          : 'Enter the email address where you want to receive your tosses.',
+          : 'Enter the inbox email where you want to receive your tosses (Apple relay addresses are not supported).',
         icon: Settings,
         showEmailInput: !detectedEmail,
       },
@@ -2107,19 +2229,21 @@ export default function App() {
             style={styles.onboardingNextBtn}
             onClick={() => {
               if (onboardingStep === steps.length - 1) {
-                const emailToUse = (newEmail.trim() || detectedEmail || '').trim();
-                if (emailToUse.includes('@')) {
+                const emailToUse = normalizeEmail(newEmail || detectedEmail || '');
+                const emailStatus = getDestinationEmailStatus(emailToUse);
+                if (emailStatus === 'ok') {
                   const newAccount: EmailAccount = {
                     id: Date.now().toString(),
                     email: emailToUse,
                     alias: emailToUse.split('@')[0],
                     isDefault: true,
                   };
-                  setEmailAccounts([newAccount]);
-                  saveEmailAccounts([newAccount]);
+                  const sanitizedAccounts = sanitizeEmailAccounts([newAccount]);
+                  setEmailAccounts(sanitizedAccounts);
+                  saveEmailAccounts(sanitizedAccounts);
                   completeOnboarding();
                 } else {
-                  alert('Email Required: Please enter a valid email address.');
+                  alert(`Email Required: ${getDestinationEmailInputError(emailStatus)}`);
                 }
               } else {
                 setOnboardingStep(prev => prev + 1);

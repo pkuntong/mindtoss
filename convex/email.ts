@@ -3,6 +3,24 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const validateRecipientEmail = (email: string) => {
+  const normalizedEmail = normalizeEmail(email);
+  if (!EMAIL_REGEX.test(normalizedEmail)) {
+    throw new Error("Invalid recipient email address.");
+  }
+  if (normalizedEmail.endsWith("@mindtoss.local")) {
+    throw new Error("Please set a real inbox email in Settings.");
+  }
+  if (normalizedEmail.endsWith("@privaterelay.appleid.com")) {
+    throw new Error("Please use a non-Apple relay inbox email for reliable delivery.");
+  }
+  return normalizedEmail;
+};
+
 const buildHtmlContent = (
   type: "text" | "voice" | "photo",
   content: string,
@@ -66,6 +84,7 @@ export const sendEmail = action({
     ),
   },
   handler: async (_ctx, args) => {
+    const recipientEmail = validateRecipientEmail(args.to);
     const smtp2goApiKey = process.env.SMTP2GO_API_KEY;
     if (!smtp2goApiKey) {
       throw new Error("SMTP2GO_API_KEY is not configured.");
@@ -73,10 +92,11 @@ export const sendEmail = action({
 
     const emailPayload: Record<string, unknown> = {
       api_key: smtp2goApiKey,
-      to: [args.to],
+      to: [recipientEmail],
       sender: "noreply@mindtoss.space",
       subject: args.subject,
       html_body: buildHtmlContent(args.type, args.content, args.attachment),
+      text_body: args.content,
     };
 
     if (args.attachment) {
@@ -97,15 +117,32 @@ export const sendEmail = action({
       body: JSON.stringify(emailPayload),
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
+    const requestId = result?.request_id;
+    const deliveryData =
+      (typeof result?.data === "object" && result?.data !== null
+        ? (result.data as Record<string, any>)
+        : null);
+    const failedCount = Number(deliveryData?.failed ?? 0);
+    const succeededCount = Number(deliveryData?.succeeded ?? 0);
+    const hasDeliveryStats = deliveryData !== null && ("failed" in deliveryData || "succeeded" in deliveryData);
 
-    if (!response.ok || result.request_id === undefined) {
-      throw new Error(result.message || result.errors?.[0] || "Failed to send email via SMTP2GO");
+    if (!response.ok || requestId === undefined) {
+      throw new Error(result?.message || result?.errors?.[0] || "Failed to send email via SMTP2GO");
+    }
+
+    if (hasDeliveryStats && (failedCount > 0 || succeededCount < 1)) {
+      const failureMessage =
+        result?.message ||
+        deliveryData?.failures?.[0]?.reason ||
+        deliveryData?.failures?.[0]?.error ||
+        result?.errors?.[0];
+      throw new Error(failureMessage || "Recipient rejected by email provider.");
     }
 
     return {
       success: true,
-      request_id: result.request_id,
+      request_id: requestId,
     };
   },
 });

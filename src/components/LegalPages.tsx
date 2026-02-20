@@ -119,7 +119,7 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ page, onBack, theme }) =
 
             <h4 style={{ ...styles.subheading, fontSize: 14 }}>Why isn't my email arriving?</h4>
             <p style={styles.paragraph}>
-              Check your spam/junk folder first. Make sure you've entered the correct email address in Settings. If problems persist, contact support@mindtoss.space
+              Check your spam/junk folder first. Make sure you've entered the correct email address in Settings, and avoid Apple relay addresses (@privaterelay.appleid.com). If problems persist, contact support@mindtoss.space
             </p>
           </div>
 

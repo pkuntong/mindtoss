@@ -2136,36 +2136,49 @@ export default function App() {
     const detectedEmail =
       user?.email && isValidDestinationEmail(user.email) ? normalizeEmail(user.email) : '';
 
-    const steps = [
-      {
-        title: 'Welcome to MindToss',
-        subtitle: "Don't forget a thing!",
-        description: 'Capture your thoughts instantly and send them straight to your inbox.',
-        icon: null, // Use mascot image instead
-        useMascot: true,
-      },
-      {
-        title: 'Speak, Snap, or Type',
-        subtitle: 'Multiple capture modes',
-        description: 'Use voice memos, take photos, or type quick notes - whatever works for you.',
-        icon: Mic,
-      },
-      {
-        title: 'Straight to Your Inbox',
-        subtitle: 'No categorizing needed',
-        description: 'Your thoughts go directly to your email for processing later with GTD or Inbox Zero.',
-        icon: Mail,
-      },
-      {
-        title: 'Confirm Your Email',
+    // Build onboarding steps — skip the email step if Sign in with Apple already
+    // provided a valid email (Apple Guideline 4.0: do not ask for information
+    // already provided by the Authentication Services framework).
+    const steps: Array<{
+      title: string;
+      subtitle: string;
+      description: string;
+      icon: any;
+      useMascot?: boolean;
+      showEmailInput?: boolean;
+    }> = [
+        {
+          title: 'Welcome to MindToss',
+          subtitle: "Don't forget a thing!",
+          description: 'Capture your thoughts instantly and send them straight to your inbox.',
+          icon: null, // Use mascot image instead
+          useMascot: true,
+        },
+        {
+          title: 'Speak, Snap, or Type',
+          subtitle: 'Multiple capture modes',
+          description: 'Use voice memos, take photos, or type quick notes - whatever works for you.',
+          icon: Mic,
+        },
+        {
+          title: 'Straight to Your Inbox',
+          subtitle: 'No categorizing needed',
+          description: 'Your thoughts go directly to your email for processing later with GTD or Inbox Zero.',
+          icon: Mail,
+        },
+      ];
+
+    // Only show the email input step if we don't already have a valid email
+    // from Sign in with Apple or another authentication provider.
+    if (!detectedEmail) {
+      steps.push({
+        title: 'Set Up Your Inbox',
         subtitle: 'One-time setup',
-        description: detectedEmail
-          ? 'We detected your email from Sign in with Apple. We will use it to send your tosses unless you choose a different one.'
-          : 'Enter the inbox email where you want to receive your tosses (Apple relay addresses are not supported).',
+        description: 'Enter the inbox email where you want to receive your tosses (Apple relay addresses are not supported).',
         icon: Settings,
-        showEmailInput: !detectedEmail,
-      },
-    ];
+        showEmailInput: true,
+      });
+    }
 
     const currentStep = steps[onboardingStep] as any;
     const IconComponent = currentStep.icon;
@@ -2229,21 +2242,31 @@ export default function App() {
             style={styles.onboardingNextBtn}
             onClick={() => {
               if (onboardingStep === steps.length - 1) {
-                const emailToUse = normalizeEmail(newEmail || detectedEmail || '');
+                // If the email step was skipped (detectedEmail exists), auto-create account
+                const emailToUse = normalizeEmail(
+                  newEmail || detectedEmail || ''
+                );
                 const emailStatus = getDestinationEmailStatus(emailToUse);
                 if (emailStatus === 'ok') {
-                  const newAccount: EmailAccount = {
-                    id: Date.now().toString(),
-                    email: emailToUse,
-                    alias: emailToUse.split('@')[0],
-                    isDefault: true,
-                  };
-                  const sanitizedAccounts = sanitizeEmailAccounts([newAccount]);
-                  setEmailAccounts(sanitizedAccounts);
-                  saveEmailAccounts(sanitizedAccounts);
+                  // Only create a new email account if none exists yet
+                  if (emailAccounts.length === 0) {
+                    const newAccount: EmailAccount = {
+                      id: Date.now().toString(),
+                      email: emailToUse,
+                      alias: emailToUse.split('@')[0],
+                      isDefault: true,
+                    };
+                    const sanitizedAccounts = sanitizeEmailAccounts([newAccount]);
+                    setEmailAccounts(sanitizedAccounts);
+                    saveEmailAccounts(sanitizedAccounts);
+                  }
                   completeOnboarding();
-                } else {
+                } else if (!detectedEmail) {
+                  // Only show error if we expected user to enter an email
                   alert(`Email Required: ${getDestinationEmailInputError(emailStatus)}`);
+                } else {
+                  // Detected email is not usable (shouldn't happen), just complete anyway
+                  completeOnboarding();
                 }
               } else {
                 setOnboardingStep(prev => prev + 1);

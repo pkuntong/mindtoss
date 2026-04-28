@@ -21,11 +21,20 @@ const validateRecipientEmail = (email: string) => {
   return normalizedEmail;
 };
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const buildHtmlContent = (
   type: "text" | "voice" | "photo",
   content: string,
   attachment?: { filename: string; content: string; contentType: string },
 ) => {
+  const safeContent = escapeHtml(content);
   let htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: linear-gradient(135deg, #FF6B35 0%, #FF8C42 100%); padding: 20px; border-radius: 12px 12px 0 0;">
@@ -38,14 +47,14 @@ const buildHtmlContent = (
   if (type === "text") {
     htmlContent += `
       <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #FF6B35;">
-        <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333;">${content.replace(/\n/g, "<br>")}</p>
+        <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333;">${safeContent.replace(/\n/g, "<br>")}</p>
       </div>
     `;
   } else if (type === "voice") {
     htmlContent += `
       <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #FF6B35;">
         <p style="margin: 0; font-size: 14px; color: #666;">🎙️ Voice memo attached</p>
-        <p style="margin: 8px 0 0 0; font-size: 16px; color: #333;">${content}</p>
+        <p style="margin: 8px 0 0 0; font-size: 16px; color: #333;">${safeContent}</p>
       </div>
     `;
   } else {
@@ -53,7 +62,7 @@ const buildHtmlContent = (
       <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #FF6B35;">
         <p style="margin: 0; font-size: 14px; color: #666;">📷 Photo attached</p>
         ${attachment ? '<img src="cid:photo" style="max-width: 100%; border-radius: 8px; margin-top: 12px;" />' : ""}
-        ${content ? `<p style="margin: 12px 0 0 0; font-size: 16px; color: #333;">${content}</p>` : ""}
+        ${content ? `<p style="margin: 12px 0 0 0; font-size: 16px; color: #333;">${safeContent}</p>` : ""}
       </div>
     `;
   }

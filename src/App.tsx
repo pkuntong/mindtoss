@@ -342,7 +342,7 @@ export default function App() {
       return;
     }
 
-    // Handle deep links from OAuth redirects (for Apple Sign In) and widget/share extension
+    // Handle deep links from widget/share extension entry points.
     const handleAppUrl = async (event: any) => {
       const url = event.url;
       console.log('Deep link received:', url);
@@ -382,54 +382,6 @@ export default function App() {
           } else if (path === 'open' || url.includes('mindtoss://open')) {
             setCurrentScreen('main');
             return;
-          }
-        }
-      }
-
-      if (url && url.includes('#access_token=')) {
-        // Handle OAuth callback
-        const hashParams = new URLSearchParams(url.split('#')[1]);
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-
-        if (accessToken && convex) {
-          // Exchange the tokens for a session
-          const { data, error } = await convex.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-          });
-
-          if (!error && data.session) {
-            setUser(data.session.user);
-            const hasOnboarded = localStorage.getItem('hasOnboarded');
-            const sessionEmail = data.session.user.email;
-            const canAutoUseSessionEmail = isValidDestinationEmail(sessionEmail);
-
-            // If user signed in with Apple and has email, auto-setup email account
-            // This avoids asking users for information already provided by Sign in with Apple
-            if (canAutoUseSessionEmail && hasOnboarded !== 'true') {
-              const savedEmails = localStorage.getItem('emailAccounts');
-              if (!savedEmails || JSON.parse(savedEmails).length === 0) {
-                const normalizedSessionEmail = normalizeEmail(sessionEmail);
-                // Auto-create email account from Sign in with Apple
-                const autoAccount: EmailAccount = {
-                  id: Date.now().toString(),
-                  email: normalizedSessionEmail,
-                  alias: normalizedSessionEmail.split('@')[0],
-                  isDefault: true,
-                };
-                localStorage.setItem('emailAccounts', JSON.stringify([autoAccount]));
-                localStorage.setItem('hasOnboarded', 'true');
-                setEmailAccounts([autoAccount]);
-                setCurrentScreen('main');
-                return;
-              }
-            }
-
-            if (canAutoUseSessionEmail) {
-              setNewEmail(normalizeEmail(sessionEmail));
-            }
-            setCurrentScreen(hasOnboarded === 'true' ? 'main' : 'onboarding');
           }
         }
       }

@@ -194,6 +194,16 @@ http.route({
   path: "/api/send-email",
   method: "POST",
   handler: withErrorHandling(async (ctx, req) => {
+    const token = getTokenFromHeader(req);
+    if (!token) {
+      return json(401, { error: "Missing Authorization header." });
+    }
+
+    const session = await ctx.runQuery(api.users.getSession, { token });
+    if (!session) {
+      return json(401, { error: "Invalid session." });
+    }
+
     const body = await req.json();
 
     const result = await ctx.runAction(api.email.sendEmail, {

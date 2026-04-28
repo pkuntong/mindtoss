@@ -1,325 +1,152 @@
-# MindToss - Quick Capture iOS App
+# MindToss
 
-A Braintoss clone - capture thoughts instantly and send them straight to your inbox. Built with React Native & Expo for iOS.
+MindToss is a quick-capture iOS app: type, record, or snap a thought and send it to your inbox for later processing.
 
 ![MindToss App](./screenshots/hero.png)
 
-## Features
+## What It Does
 
-### Core Functionality
-- **📝 Text Notes** - Quick text capture with character count
-- **🎤 Voice Memos** - Record voice notes with one tap
-- **📷 Photo Capture** - Take photos or pick from gallery
-- **📧 Email Integration** - Sends directly to your inbox via iOS Mail
-- **📜 History** - View and manage your toss history
-- **🌓 Dark Mode** - Full dark theme support
-
-### GTD & Inbox Zero Ready
-- Designed for Getting Things Done methodology
-- Zero categorization - just capture and toss
-- Process later from your inbox
-
-### Premium Features (Subscription)
-- Unlimited tosses
-- Multiple email accounts
-- Voice memo transcription
-- Priority support
+- Text notes with a simple character count.
+- Voice memos recorded in-app and sent as email attachments.
+- Photo capture or library selection with optional notes.
+- Multiple destination inboxes.
+- Local and synced toss history.
+- Dark mode.
+- In-app support, privacy, terms, sign-out, and account deletion flows.
 
 ## Tech Stack
 
-- **Framework**: React Native with Expo SDK 52
-- **Language**: TypeScript
-- **State**: React Hooks + AsyncStorage
-- **Audio**: expo-av
-- **Camera**: expo-camera + expo-image-picker
-- **Email**: expo-mail-composer
-- **Animations**: React Native Animated API
-- **Haptics**: expo-haptics
-- **Build**: EAS Build
+- Vite + React + TypeScript for the app UI.
+- Capacitor for the native iOS wrapper.
+- Convex HTTP routes for auth, app-state sync, account deletion, and email dispatch.
+- SMTP2GO for outbound email from `noreply@mindtoss.space`.
+- Native Sign in with Apple through `@capacitor-community/apple-sign-in`.
 
 ## Project Structure
 
-```
+```text
 mindtoss/
-├── App.tsx              # Main app component with all screens
-├── app.json             # Expo configuration
-├── package.json         # Dependencies
-├── eas.json             # EAS Build configuration
-├── tsconfig.json        # TypeScript config
-├── babel.config.js      # Babel config
-└── assets/
-    ├── icon.png         # App icon (1024x1024)
-    ├── adaptive-icon.png
-    ├── splash.png       # Splash screen
-    ├── favicon.png
-    └── logo.png         # In-app logo
+├── src/
+│   ├── App.tsx                    # Main app screens and capture flow
+│   ├── components/
+│   │   ├── AuthScreen.tsx         # Email and Apple sign-in UI
+│   │   └── LegalPages.tsx         # In-app support/privacy/terms
+│   └── lib/convex.ts              # Client HTTP wrapper for Convex routes
+├── convex/
+│   ├── http.ts                    # Public HTTP API routes
+│   ├── users.ts                   # Auth/session/state mutations and queries
+│   ├── email.ts                   # SMTP2GO email action
+│   └── schema.ts                  # Convex schema
+├── ios/App/                       # Capacitor iOS project
+├── website/                       # Public legal/support pages
+├── capacitor.config.ts
+├── vite.config.ts
+├── package.json
+└── .env.example
 ```
 
-## Getting Started
+## Requirements
 
-### Prerequisites
+- Node.js 18+ with npm.
+- Xcode for iOS builds.
+- A Convex deployment.
+- An SMTP2GO API key configured in Convex environment variables.
+- Apple Developer configuration for the iOS app and Sign in with Apple.
 
-- Node.js 18+
-- npm or yarn
-- Expo CLI (`npm install -g expo-cli`)
-- EAS CLI (`npm install -g eas-cli`)
-- Apple Developer Account (for iOS builds)
-- Xcode 15+ (for iOS simulator)
+## Environment
 
-### Installation
+Copy `.env.example` to `.env.local` and set:
 
-1. **Clone and Install**
 ```bash
-cd mindtoss
+VITE_CONVEX_URL=https://your-deployment.convex.cloud
+CONVEX_DEPLOYMENT=your-deployment
+VITE_APPLE_CLIENT_ID=com.mindtoss.app
+```
+
+Set `SMTP2GO_API_KEY` in the Convex deployment environment, not in the client app.
+
+## Development
+
+```bash
 npm install
+npm run convex:dev
+npm run dev
 ```
 
-2. **Create Asset Files**
+The Vite dev server runs the web app. Native-only capabilities such as Sign in with Apple and iOS camera behavior should be verified in the Capacitor iOS app.
 
-You need to create these image assets in the `assets/` folder:
-- `icon.png` - 1024x1024 app icon
-- `splash.png` - 1284x2778 splash screen
-- `adaptive-icon.png` - 1024x1024 foreground icon
-- `logo.png` - In-app logo (300x100)
-- `favicon.png` - 48x48 web favicon
-
-3. **Start Development**
-```bash
-# Start Expo dev server
-npx expo start
-
-# Run on iOS simulator
-npx expo start --ios
-```
-
-### Running on Device
+## Build
 
 ```bash
-# Install Expo Go on your iPhone
-# Scan the QR code from terminal
+npm run build
 ```
 
-## Building for App Store
+This runs TypeScript project checks and creates the production web bundle in `dist/`.
 
-### 1. Configure EAS
+## Sync Web Assets To iOS
 
 ```bash
-# Login to Expo
-eas login
-
-# Configure your project
-eas build:configure
+npm run sync
 ```
 
-### 2. Update Configuration
+This builds the web app and copies `dist/` into both Capacitor iOS public asset directories used by the project.
 
-Edit `eas.json` with your Apple credentials:
-```json
-{
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "your-apple-id@email.com",
-        "ascAppId": "your-app-store-connect-app-id",
-        "appleTeamId": "your-team-id"
-      }
-    }
-  }
-}
-```
-
-Edit `app.json`:
-- Set `expo.ios.bundleIdentifier` to your unique identifier
-- Update `expo.extra.eas.projectId` with your project ID
-- Set `expo.owner` to your Expo username
-
-### 3. Build for iOS
+Then open the iOS project:
 
 ```bash
-# Development build (for testing)
-eas build --platform ios --profile development
-
-# Preview build (internal testing)
-eas build --platform ios --profile preview
-
-# Production build
-eas build --platform ios --profile production
+npm run open
 ```
 
-### 4. Submit to App Store
+Build and archive from Xcode for App Store submission.
+
+## Convex Deployment
 
 ```bash
-eas submit --platform ios
+npm run convex:deploy
 ```
 
-## Setting Up In-App Purchases
+Important runtime expectations:
 
-### 1. App Store Connect Setup
+- `/api/send-email` requires an authenticated session token.
+- `/api/state` stores user app state as JSON blobs.
+- Account deletion removes synced state, sessions, and the user record.
+- Email delivery requires `SMTP2GO_API_KEY`.
 
-1. Go to [App Store Connect](https://appstoreconnect.apple.com)
-2. Create your app
-3. Go to **Features > In-App Purchases**
-4. Add subscription:
-   - `mindtoss_monthly` - $2.99/month
+## App Store Copy
 
-### 2. Add Revenue Cat (Recommended)
+Short description:
 
-```bash
-npm install react-native-purchases
-```
-
-Add to `App.tsx`:
-```typescript
-import Purchases from 'react-native-purchases';
-
-// In useEffect
-Purchases.configure({ apiKey: 'your-revenuecat-api-key' });
-```
-
-### 3. Alternative: expo-in-app-purchases
-
-```bash
-npx expo install expo-in-app-purchases
-```
-
-## Customization
-
-### Colors
-Edit the `COLORS` object in `App.tsx`:
-```typescript
-const COLORS = {
-  primary: '#FF6B35',      // Main brand color
-  primaryDark: '#E55A2B',  // Darker variant
-  // ... etc
-};
-```
-
-### App Name
-1. Change `name` in `app.json`
-2. Update `bundleIdentifier` 
-3. Update package name in `package.json`
-
-### Subscription Prices
-Edit `SUBSCRIPTION_PLANS` in `App.tsx`
-
-## App Store Requirements
-
-### Privacy Policy
-Create a privacy policy page. Required data disclosures:
-- Email address (for toss delivery)
-- Photos (optional capture)
-- Audio (voice memos)
-
-### App Screenshots (Required Sizes)
-- iPhone 6.7": 1290 x 2796
-- iPhone 6.5": 1284 x 2778
-- iPhone 5.5": 1242 x 2208
-- iPad Pro 12.9": 2048 x 2732
-
-### App Store Description
-
-**Short Description:**
 > Capture thoughts instantly. Toss them to your inbox. Never forget a thing.
 
-**Full Description:**
-```
-Don't forget a thing with MindToss!
+Suggested keywords:
 
-Whenever you have a thought that you don't want to lose - speak, snap or type it into MindToss and it will be sent to your inbox for later processing.
-
-• Capture your To-do's in one click
-• Empty your brain on the spot
-• Quickly capture when on the move
-• Voice memos easily captured
-• Capture inspiring ideas, receipts or business cards
-
-Perfect for GTD (Getting Things Done) and Inbox Zero methodologies.
-
-FEATURES:
-✓ Text notes - Type quick thoughts
-✓ Voice memos - Speak your mind
-✓ Photo capture - Snap images instantly
-✓ Multiple email accounts - Send to work or personal
-✓ History - Never lose a toss
-✓ Dark mode - Easy on the eyes
-
-FREE FEATURES:
-• 10 tosses per day
-• Text and photo capture
-• Single email account
-
-PREMIUM SUBSCRIPTION:
-• Unlimited tosses
-• Voice memos
-• Multiple email accounts
-• Priority support
-
-Subscription pricing:
-• $2.99/month
-
-Subscriptions automatically renew unless cancelled 24 hours before the end of the current period.
-```
-
-### Keywords (100 chars max)
-```
+```text
 gtd,inbox zero,capture,notes,voice memo,todo,tasks,productivity,email,quick note
 ```
 
+Avoid advertising subscriptions, free-tier limits, or transcription until those features are implemented and enforced in the app/backend.
+
 ## Troubleshooting
 
-### Build Issues
+### Email Not Sending
 
-**Error: Missing provisioning profile**
-```bash
-eas credentials
-# Select iOS > Build Credentials > Generate new
-```
+- Confirm the user is signed in.
+- Confirm the destination inbox is a real email address.
+- Avoid Apple private relay addresses for the destination inbox.
+- Confirm `SMTP2GO_API_KEY` is configured in Convex.
+- Check the Convex logs for `/api/send-email` errors.
 
-**Error: Bundle identifier mismatch**
-- Ensure `ios.bundleIdentifier` in `app.json` matches App Store Connect
+### Camera Or Photos Not Working
 
-### Runtime Issues
+- Verify iOS permission strings in `ios/App/MindToss/Info.plist`.
+- Test native capture in the iOS app, not only the Vite web server.
 
-**Camera not working**
-- Check `NSCameraUsageDescription` in `app.json`
-- Verify permissions in Settings app
+### Apple Sign In Not Available
 
-**Email not sending**
-- Mail app must be configured on device
-- Check recipient email is valid
-
-**RevenueCat Offerings Error**
-If you see: "Failed to load offerings: There is an issue with your configuration..."
-
-This error occurs when RevenueCat SDK is configured but offerings aren't set up in the dashboard. You have two options:
-
-**Option 1: Configure RevenueCat Offerings (Recommended)**
-1. Go to [RevenueCat Dashboard](https://app.revenuecat.com)
-2. Select your project
-3. Go to **Offerings** in the sidebar
-4. Create a new offering (e.g., "default")
-5. Add products to the offering:
-   - Create product with ID: `mindtoss_monthly`
-   - Link it to your App Store Connect subscription
-6. Set the offering as the default offering
-
-**Option 2: Suppress the Error (If not using offerings yet)**
-The error message states: "If you don't want to use the offerings system, you can safely ignore this message."
-- The error is non-fatal and won't crash your app
-- You can suppress it by configuring RevenueCat to not automatically fetch offerings
-- Or wait until you're ready to set up offerings in the dashboard
-
-For more details: https://rev.cat/how-to-configure-offerings
-
-## License
-
-MIT License - See LICENSE file
+- Apple Sign In is native iOS-only in this build.
+- Verify the app bundle identifier and Apple Developer capability setup.
 
 ## Support
 
 - Email: support@mindtoss.space
 - Website: https://mindtoss.space
-
----
-
-Built with ❤️ using React Native & Expo

@@ -104,7 +104,7 @@ export const LegalPages: React.FC<LegalPagesProps> = ({ page, onBack, theme }) =
 
             <h4 style={{ ...styles.subheading, fontSize: 14 }}>How do I add email addresses?</h4>
             <p style={styles.paragraph}>
-              Go to Settings, scroll down and tap "Email Addresses". Add as many email addresses as you'd like. Your thoughts can be sent to any of them.
+              Go to Settings, scroll down to Email Accounts, and tap "Add Email Account". Add as many inboxes as you'd like. Your thoughts can be sent to any of them.
             </p>
 
             <h4 style={{ ...styles.subheading, fontSize: 14 }}>Can I record voice memos?</h4>

@@ -159,10 +159,6 @@ export const convex = convexSiteUrl
             error,
           };
         },
-        setSession: async (_args: { access_token: string; refresh_token: string }) => ({
-          data: { session: null as Session | null },
-          error: { message: 'OAuth token exchange is not used in Convex mode.' },
-        }),
       },
       functions: {
         invoke: async (name: string, _options?: { method?: string }) => {
@@ -347,10 +343,14 @@ interface SendTossEmailRequest {
 }
 
 export const sendTossEmail = async (payload: SendTossEmailRequest) =>
-  request<{ success: boolean; request_id?: string }>('/api/send-email', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  request<{ success: boolean; request_id?: string }>(
+    '/api/send-email',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    getStoredToken() || undefined,
+  );
 
 interface RemoteAppState {
   emailAccounts: unknown[];
